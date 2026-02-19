@@ -157,7 +157,7 @@
         
         <!-- 底部 -->
         <footer style="text-align: center; padding: 30px; color: var(--text-secondary); font-size: 0.85rem;">
-            <p data-i18n="footer">PolyChat v1.0 | 由 OpenClaw AI 驱动 🤖</p>
+            <p data-i18n="footer">PolyChat v1.0 | 由 jieraltjp 开发维护 🤖</p>
             <p style="margin-top: 8px;" data-i18n="footer2">让语言不再是障碍，让世界更加紧密</p>
         </footer>
     </div>
@@ -165,13 +165,18 @@
     <script src="i18n.js"></script>
     <script src="app.js"></script>
     <script>
+        console.log('i18n loaded:', typeof i18n);
+        console.log('PolyChat loaded:', typeof PolyChat);
+        
         function changeUILang(lang) {
+            console.log('Changing UI lang to:', lang);
             i18n.setLang(lang);
             updateFeatureList();
         }
         
         function updateFeatureList() {
             const list = document.getElementById('featureList');
+            if (!list) return;
             const lang = i18n.currentLang;
             const features = {
                 zh: ['• 输入消息自动翻译成您选择的语言', '• 支持 12+ 种语言实时翻译', '• 消息将显示原文和翻译', '• 选择喜欢的颜色代表自己'],
@@ -194,9 +199,14 @@
         }
         
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded, initializing i18n...');
             i18n.init();
             const savedLang = localStorage.getItem('polychat_ui_lang') || 'zh';
-            document.getElementById('uiLang').value = savedLang;
+            const langSelect = document.getElementById('uiLang');
+            if (langSelect) {
+                langSelect.value = savedLang;
+                console.log('UI language set to:', savedLang);
+            }
             updateFeatureList();
         });
     </script>
