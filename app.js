@@ -1,16 +1,13 @@
 // PolyChat - 实时聊天室前端
 class PolyChat {
     constructor() {
-        // 如果没有用户名，自动生成一个
         this.username = localStorage.getItem('polychat_username') || this.generateUsername();
         this.color = localStorage.getItem('polychat_color') || this.randomColor();
         this.targetLang = localStorage.getItem('polychat_lang') || 'zh';
         this.messages = [];
         this.pollingInterval = null;
-        this.lastMessageId = 0;
-        this.lastUpdateTime = 0;
+        this.lastMessageTime = 0;
         
-        // 保存自动生成的用户名
         localStorage.setItem('polychat_username', this.username);
         localStorage.setItem('polychat_color', this.color);
         
@@ -42,7 +39,6 @@ class PolyChat {
         document.getElementById('username').value = this.username;
         document.getElementById('targetLang').value = this.targetLang;
         
-        // 选中颜色
         document.querySelectorAll('.color-option').forEach(el => {
             if (el.dataset.color === this.color) {
                 el.classList.add('selected');
@@ -51,7 +47,6 @@ class PolyChat {
     }
     
     bindEvents() {
-        // 发送消息
         document.getElementById('sendBtn').addEventListener('click', () => this.sendMessage());
         document.getElementById('messageInput').addEventListener('keypress', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
@@ -60,13 +55,11 @@ class PolyChat {
             }
         });
         
-        // 用户设置
         document.getElementById('username').addEventListener('change', (e) => {
             this.username = e.target.value.trim();
             localStorage.setItem('polychat_username', this.username);
         });
         
-        // 颜色选择
         const savedColor = localStorage.getItem('polychat_color') || this.color;
         document.querySelectorAll('.color-option').forEach(el => {
             if (el.dataset.color === savedColor) {
@@ -80,13 +73,11 @@ class PolyChat {
             });
         });
         
-        // 语言选择
         document.getElementById('targetLang').addEventListener('change', (e) => {
             this.targetLang = e.target.value;
             localStorage.setItem('polychat_lang', this.targetLang);
         });
         
-        // 表情选择
         document.querySelectorAll('.emoji-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 const emoji = btn.dataset.emoji;
@@ -106,7 +97,6 @@ class PolyChat {
             return;
         }
         
-        // 更新用户名
         this.username = document.getElementById('username').value.trim() || this.username;
         localStorage.setItem('polychat_username', this.username);
         
@@ -142,7 +132,8 @@ class PolyChat {
             alert('网络错误，请重试');
         } finally {
             btn.disabled = false;
-            btn.innerHTML = i18n.t('send');
+            const sendText = i18n ? i18n.t('send') : '发送';
+            btn.innerHTML = '🚀 ' + sendText;
         }
     }
     
@@ -188,14 +179,13 @@ class PolyChat {
             const result = await response.json();
             
             if (result.success) {
-                // 检查是否有新消息，避免不必要的重渲染
                 const newMessages = result.messages;
-                const hasNew = newMessages.length > this.messages.length || 
-                    (newMessages.length > 0 && newMessages[newMessages.length - 1].id > this.lastMessageId);
+                const latestTime = newMessages.length > 0 ? newMessages[newMessages.length - 1].created_at : '';
                 
-                if (hasNew) {
+                // Only update if there are new messages (by timestamp)
+                if (latestTime && latestTime !== this.lastMessageTime) {
+                    this.lastMessageTime = latestTime;
                     this.messages = newMessages;
-                    this.lastMessageId = newMessages.length > 0 ? newMessages[newMessages.length - 1].id : 0;
                     this.renderMessages();
                 }
             }
@@ -205,21 +195,22 @@ class PolyChat {
     }
     
     startPolling() {
-        // 减少轮询频率，从3秒改为5秒，减少闪烁
         this.pollingInterval = setInterval(() => {
             this.loadMessages();
-        }, 5000);
+        }, 3000);
     }
     
     renderMessages() {
         const container = document.getElementById('messagesContainer');
         
         if (this.messages.length === 0) {
+            const emptyText = i18n ? i18n.t('emptyState') : '还没有消息';
+            const emptySub = i18n ? i18n.t('emptyStateSub') : '成为第一个说话的人吧！';
             container.innerHTML = `
                 <div class="empty-state">
                     <div class="empty-icon">💬</div>
-                    <p data-i18n="emptyState">${i18n.t('emptyState')}</p>
-                    <p data-i18n="emptyStateSub">${i18n.t('emptyStateSub')}</p>
+                    <p>${emptyText}</p>
+                    <p>${emptySub}</p>
                 </div>
             `;
             return;
@@ -227,7 +218,6 @@ class PolyChat {
         
         container.innerHTML = this.messages.map(msg => this.createMessageHTML(msg)).join('');
         
-        // 绑定点赞事件
         container.querySelectorAll('.like-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 const msgId = parseInt(btn.dataset.msgId);
@@ -240,6 +230,7 @@ class PolyChat {
     
     addMessage(msg) {
         this.messages.push(msg);
+        this.lastMessageTime = msg.created_at;
         this.renderMessages();
     }
     
@@ -258,16 +249,9 @@ class PolyChat {
             const result = await response.json();
             
             if (result.success) {
-                // 更新本地消息的点赞数
                 const msg = this.messages.find(m => m.id === msgId);
                 if (msg) {
                     msg.likes = result.likes;
-                    msg.liked_by = msg.liked_by ? JSON.parse(msg.liked_by) : [];
-                    if (result.unliked) {
-                        msg.liked_by = msg.liked_by.filter(u => u !== this.username);
-                    } else {
-                        msg.liked_by.push(this.username);
-                    }
                 }
                 this.renderMessages();
             }
@@ -281,7 +265,8 @@ class PolyChat {
         const time = this.formatTime(msg.created_at);
         
         let translationHTML = '';
-        if (msg.translated_text && msg.translated_text !== msg.original_text) {
+        // Only show translation if it's different from original
+        if (msg.translated_text && msg.translated_text !== msg.original_text && msg.target_lang !== msg.original_lang) {
             translationHTML = `
                 <div class="message-translation">
                     🌐 ${this.escapeHTML(msg.translated_text)}
@@ -289,7 +274,6 @@ class PolyChat {
             `;
         }
         
-        // 点赞状态
         const likedBy = msg.liked_by ? JSON.parse(msg.liked_by) : [];
         const isLiked = likedBy.includes(this.username);
         
@@ -316,16 +300,20 @@ class PolyChat {
     }
     
     formatTime(timestamp) {
+        // Tokyo timezone: UTC+9
         const date = new Date(timestamp);
+        const tokyoTime = new Date(date.getTime() + (9 * 60 * 60 * 1000));
+        
         const now = new Date();
-        const diff = now - date;
+        const nowTokyo = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+        const diff = nowTokyo - tokyoTime;
         
         if (diff < 60000) return '刚刚';
         if (diff < 3600000) return Math.floor(diff / 60000) + '分钟前';
         if (diff < 86400000) return Math.floor(diff / 3600000) + '小时前';
         
-        return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' }) + 
-               ' ' + date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+        return tokyoTime.toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' }) + 
+               ' ' + tokyoTime.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
     }
     
     scrollToBottom() {
@@ -340,7 +328,6 @@ class PolyChat {
     }
 }
 
-// 初始化
 document.addEventListener('DOMContentLoaded', () => {
     window.chat = new PolyChat();
 });

@@ -103,6 +103,9 @@ function db_getMessages($limit = 50) {
     return array_reverse($stmt->fetchAll(PDO::FETCH_ASSOC));
 }
 
+// 设置时区为东京
+date_default_timezone_set('Asia/Tokyo');
+
 function translateText($text, $from = 'auto', $to = 'zh') {
     // 使用本地 Node.js 翻译服务
     $url = "http://localhost:16689/?action=translate&text=" . urlencode($text) . "&from=" . $from . "&to=" . $to;
