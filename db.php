@@ -32,6 +32,17 @@ try {
     die("数据库错误: " . $e->getMessage());
 }
 
+// 添加缺失的列
+try {
+    $pdo->exec("ALTER TABLE messages ADD COLUMN emoji TEXT DEFAULT ''");
+} catch (Exception $e) {}
+try {
+    $pdo->exec("ALTER TABLE messages ADD COLUMN likes INTEGER DEFAULT 0");
+} catch (Exception $e) {}
+try {
+    $pdo->exec("ALTER TABLE messages ADD COLUMN liked_by TEXT DEFAULT ''");
+} catch (Exception $e) {}
+
 function getUserByName($username) {
     global $pdo;
     $stmt = $pdo->prepare("SELECT * FROM users WHERE username = ?");
