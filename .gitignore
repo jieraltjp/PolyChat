@@ -1,0 +1,10 @@
+# 忽略文件
+*.db
+*.sqlite
+*.log
+node_modules/
+.DS_Store
+Thumbs.db
+
+# 测试文件（可选保留）
+test*.php
