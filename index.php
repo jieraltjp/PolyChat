@@ -8,11 +8,57 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌍</text></svg>">
 </head>
 <body>
-    <div class="container">
+    <!-- 登录/注册弹窗 -->
+    <div id="authModal" class="modal">
+        <div class="modal-content">
+            <div class="auth-tabs">
+                <button class="auth-tab active" data-tab="login">登录</button>
+                <button class="auth-tab" data-tab="register">注册</button>
+            </div>
+            
+            <!-- 登录表单 -->
+            <form id="loginForm" class="auth-form">
+                <div class="form-group">
+                    <label>用户名</label>
+                    <input type="text" id="loginUsername" placeholder="输入用户名" required>
+                </div>
+                <div class="form-group">
+                    <label>密码</label>
+                    <input type="password" id="loginPassword" placeholder="输入密码" required>
+                </div>
+                <button type="submit" class="btn-primary">登录</button>
+                <p class="auth-tip">未注册？直接输入用户名进入游客模式</p>
+            </form>
+            
+            <!-- 注册表单 -->
+            <form id="registerForm" class="auth-form" style="display:none;">
+                <div class="form-group">
+                    <label>用户名</label>
+                    <input type="text" id="regUsername" placeholder="2-20字符" required minlength="2" maxlength="20">
+                </div>
+                <div class="form-group">
+                    <label>密码</label>
+                    <input type="password" id="regPassword" placeholder="至少6位" required minlength="6">
+                </div>
+                <div class="form-group">
+                    <label>邮箱 (可选)</label>
+                    <input type="email" id="regEmail" placeholder="your@email.com">
+                </div>
+                <button type="submit" class="btn-primary">注册</button>
+            </form>
+            
+            <button class="btn-guest" id="guestBtn">游客进入 ></button>
+        </div>
+    </div>
+
+    <div class="container" id="mainContainer" style="display:none;">
         <!-- 头部 -->
         <header class="header">
             <h1 class="logo" data-i18n="title">PolyChat 🌍</h1>
             <p class="tagline" data-i18n="tagline">跨越语言障碍，连接世界各地的朋友</p>
+            <div class="header-actions">
+                <button class="btn-logout" id="logoutBtn">退出</button>
+            </div>
         </header>
         
         <!-- 主内容 -->
@@ -22,10 +68,12 @@
                 <div class="chat-header">
                     <div class="chat-title">
                         <span class="online-dot"></span>
-                        <span data-i18n="chatTitle">公共聊天室</span>
+                        <span id="currentRoomName">公共聊天室</span>
                     </div>
                     <div class="chat-stats">
-                        <span id="onlineCount" data-i18n="online">🌐 在线</span>
+                        <select id="roomSelect" class="room-select">
+                            <option value="1">公共聊天室</option>
+                        </select>
                     </div>
                 </div>
                 
@@ -36,7 +84,6 @@
                 </div>
                 
                 <div class="input-area">
-                    <!-- 表情选择器 -->
                     <div class="emoji-bar">
                         <button class="emoji-btn" data-emoji="👍">👍</button>
                         <button class="emoji-btn" data-emoji="❤️">❤️</button>
@@ -56,23 +103,19 @@
                         <textarea 
                             id="messageInput" 
                             class="input-box" 
-                            data-i18n-placeholder="placeholder"
-                            placeholder="输入消息... (Enter 发送, Shift+Enter 换行)"
+                            placeholder="输入消息... (Enter 发送)"
                             rows="1"
                         ></textarea>
-                        <button id="sendBtn" class="send-btn" data-i18n="send">
-                            🚀 发送
-                        </button>
+                        <button id="sendBtn" class="send-btn">🚀 发送</button>
                     </div>
                 </div>
             </div>
             
             <!-- 侧边栏 -->
             <aside class="sidebar">
-                <!-- UI语言设置 -->
                 <div class="sidebar-card">
                     <div class="sidebar-title">🌐 UI 语言</div>
-                    <select id="uiLang" class="lang-select" onchange="changeUILang(this.value)">
+                    <select id="uiLang" class="lang-select">
                         <option value="zh">🇨🇳 中文</option>
                         <option value="en">🇺🇸 English</option>
                         <option value="ja">🇯🇵 日本語</option>
@@ -88,19 +131,17 @@
                     </select>
                 </div>
                 
-                <!-- 用户设置 -->
                 <div class="sidebar-card">
-                    <div class="sidebar-title" data-i18n="settings">⚙️ 个人设置</div>
+                    <div class="sidebar-title">⚙️ 个人设置</div>
                     <div class="setup-form">
                         <div class="form-group">
-                            <label class="form-label" data-i18n="username">用户名</label>
-                            <input type="text" id="username" class="form-input" data-i18n-placeholder="usernamePlaceholder" placeholder="给自己起个名字" maxlength="20">
+                            <label>用户名</label>
+                            <input type="text" id="username" readonly>
                         </div>
-                        
                         <div class="form-group">
-                            <label class="form-label" data-i18n="yourColor">你的颜色</label>
+                            <label>你的颜色</label>
                             <div class="color-picker">
-                                <div class="color-option selected" data-color="#6366f1" style="background: #6366f1"></div>
+                                <div class="color-option" data-color="#6366f1" style="background: #6366f1"></div>
                                 <div class="color-option" data-color="#ec4899" style="background: #ec4899"></div>
                                 <div class="color-option" data-color="#8b5cf6" style="background: #8b5cf6"></div>
                                 <div class="color-option" data-color="#06b6d4" style="background: #06b6d4"></div>
@@ -110,9 +151,8 @@
                                 <div class="color-option" data-color="#64748b" style="background: #64748b"></div>
                             </div>
                         </div>
-                        
                         <div class="form-group">
-                            <label class="form-label" data-i18n="translateTo">翻译目标语言</label>
+                            <label>翻译目标语言</label>
                             <select id="targetLang" class="lang-select">
                                 <option value="zh">🇨🇳 中文</option>
                                 <option value="en">🇺🇸 English</option>
@@ -122,54 +162,148 @@
                                 <option value="fr">🇫🇷 Français</option>
                                 <option value="de">🇩🇪 Deutsch</option>
                                 <option value="ru">🇷🇺 Русский</option>
-                                <option value="ar">🇸🇦 العربية</option>
-                                <option value="hi">🇮🇳 हिन्दी</option>
-                                <option value="pt">🇧🇷 Português</option>
-                                <option value="it">🇮🇹 Italiano</option>
                             </select>
                         </div>
                     </div>
                 </div>
                 
-                <!-- 功能说明 -->
                 <div class="sidebar-card">
-                    <div class="sidebar-title" data-i18n="features">💡 功能说明</div>
-                    <div style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.6;" id="featureList">
-                        <p>• 输入消息自动翻译成您选择的语言</p>
-                        <p>• 支持 12+ 种语言实时翻译</p>
-                        <p>• 消息将显示原文和翻译</p>
-                        <p>• 选择喜欢的颜色代表自己</p>
-                        <p style="margin-top: 12px; padding: 10px; background: var(--glass); border-radius: 8px;" data-i18n="featureHighlight">
-                            🌐 无论说什么语言，我们都能懂你！
-                        </p>
-                    </div>
-                </div>
-                
-                <!-- 在线用户 -->
-                <div class="sidebar-card">
-                    <div class="sidebar-title" data-i18n="recentActive">👥 最近活跃</div>
-                    <div class="online-list" id="onlineList">
-                        <span style="color: var(--text-secondary); font-size: 0.85rem;">加载中...</span>
+                    <div class="sidebar-title">💡 功能说明</div>
+                    <div style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.6;">
+                        <p>• 输入消息自动翻译</p>
+                        <p>• 支持 12+ 种语言</p>
+                        <p>• 点赞表情功能</p>
+                        <p>• 实时推送消息</p>
                     </div>
                 </div>
             </aside>
         </div>
         
-        <!-- 底部 -->
         <footer style="text-align: center; padding: 30px; color: var(--text-secondary); font-size: 0.85rem;">
-            <p data-i18n="footer">PolyChat v1.0 | 由 jieraltjp 开发维护 🤖</p>
-            <p style="margin-top: 8px;" data-i18n="footer2">让语言不再是障碍，让世界更加紧密</p>
+            <p>PolyChat v2.0 | 由 jieraltjp 开发维护</p>
         </footer>
     </div>
     
     <script src="i18n.js"></script>
     <script src="app.js"></script>
     <script>
-        function changeUILang(lang) {
-            i18n.setLang(lang);
+        // Auth Modal
+        const authModal = document.getElementById('authModal');
+        const mainContainer = document.getElementById('mainContainer');
+        
+        // 检查登录状态
+        function checkAuth() {
+            const user = JSON.parse(localStorage.getItem('polychat_user') || '{}');
+            if (user && user.username) {
+                showMainApp(user);
+            } else {
+                showAuthModal();
+            }
         }
         
-        document.addEventListener('DOMContentLoaded', function() {
+        function showAuthModal() {
+            authModal.style.display = 'flex';
+            mainContainer.style.display = 'none';
+        }
+        
+        function showMainApp(user) {
+            authModal.style.display = 'none';
+            mainContainer.style.display = 'block';
+            
+            document.getElementById('username').value = user.username;
+            window.currentUser = user;
+        }
+        
+        // Tab 切换
+        document.querySelectorAll('.auth-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                
+                const isLogin = tab.dataset.tab === 'login';
+                document.getElementById('loginForm').style.display = isLogin ? 'block' : 'none';
+                document.getElementById('registerForm').style.display = isLogin ? 'none' : 'block';
+            });
+        });
+        
+        // 登录
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('loginUsername').value.trim();
+            const password = document.getElementById('loginPassword').value;
+            
+            const formData = new FormData();
+            formData.append('action', 'login');
+            formData.append('username', username);
+            formData.append('password', password);
+            
+            try {
+                const response = await fetch('api.php', { method: 'POST', body: formData });
+                const result = await response.json();
+                
+                if (result.success) {
+                    localStorage.setItem('polychat_user', JSON.stringify(result.user));
+                    showMainApp(result.user);
+                } else {
+                    alert(result.error || '登录失败');
+                }
+            } catch (err) {
+                alert('网络错误');
+            }
+        });
+        
+        // 注册
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('regUsername').value.trim();
+            const password = document.getElementById('regPassword').value;
+            const email = document.getElementById('regEmail').value.trim();
+            const color = '#' + Math.floor(Math.random()*16777215).toString(16);
+            
+            const formData = new FormData();
+            formData.append('action', 'register');
+            formData.append('username', username);
+            formData.append('password', password);
+            formData.append('email', email);
+            formData.append('color', color);
+            
+            try {
+                const response = await fetch('api.php', { method: 'POST', body: formData });
+                const result = await response.json();
+                
+                if (result.success) {
+                    localStorage.setItem('polychat_user', JSON.stringify(result.user));
+                    showMainApp(result.user);
+                } else {
+                    alert(result.error || '注册失败');
+                }
+            } catch (err) {
+                alert('网络错误');
+            }
+        });
+        
+        // 游客进入
+        document.getElementById('guestBtn').addEventListener('click', () => {
+            const username = '游客' + Math.floor(Math.random() * 10000);
+            const user = { username, color: '#6366f1', role: 'guest' };
+            localStorage.setItem('polychat_user', JSON.stringify(user));
+            showMainApp(user);
+        });
+        
+        // 退出
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            localStorage.removeItem('polychat_user');
+            showAuthModal();
+        });
+        
+        // UI 语言
+        document.getElementById('uiLang').addEventListener('change', (e) => {
+            i18n.setLang(e.target.value);
+        });
+        
+        // 页面加载
+        document.addEventListener('DOMContentLoaded', () => {
+            checkAuth();
             i18n.init();
         });
     </script>

@@ -1,83 +1,26 @@
-// PolyChat - 实时聊天室前端
+// PolyChat - 实时聊天室前端 v2.0
 class PolyChat {
     constructor() {
-        this.username = localStorage.getItem('polychat_username') || this.generateUsername();
-        this.color = localStorage.getItem('polychat_color') || this.randomColor();
+        this.user = JSON.parse(localStorage.getItem('polychat_user') || '{}');
+        this.color = this.user.color || localStorage.getItem('polychat_color') || '#6366f1';
         this.targetLang = localStorage.getItem('polychat_lang') || 'zh';
         this.messages = [];
         this.pollingInterval = null;
         this.lastMessageTime = 0;
-        
-        localStorage.setItem('polychat_username', this.username);
-        localStorage.setItem('polychat_color', this.color);
+        this.roomId = 1;
         
         this.init();
     }
     
-    generateUsername() {
-        const adjectives = ['酷', '萌', '帅', '稳', '飞', '浪', '星', '月', '云', '风', '龙', '虎'];
-        const nouns = ['哥', '弟', '酱', '仔', '侠', '客', '人', '鸟', '鱼', '猫', '狗', '兔'];
-        const num = Math.floor(Math.random() * 1000);
-        return adjectives[Math.floor(Math.random() * adjectives.length)] + 
-               nouns[Math.floor(Math.random() * nouns.length)] + 
-               num;
-    }
-    
-    randomColor() {
-        const colors = ['#6366f1', '#ec4899', '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#64748b'];
-        return colors[Math.floor(Math.random() * colors.length)];
-    }
-    
     init() {
-        this.loadSettings();
         this.bindEvents();
+        this.loadRooms();
         this.loadMessages();
         this.startSSE();
     }
     
-    startSSE() {
-        // Use Server-Sent Events for real-time updates
-        if (typeof EventSource !== 'undefined') {
-            const lastId = this.messages.length > 0 ? this.messages[this.messages.length - 1].id : 0;
-            this.eventSource = new EventSource('sse.php?last_id=' + lastId);
-            
-            this.eventSource.onmessage = (event) => {
-                const data = JSON.parse(event.data);
-                
-                if (data.type === 'new_messages') {
-                    // Add new messages to the list
-                    data.messages.forEach(msg => {
-                        if (!this.messages.find(m => m.id === msg.id)) {
-                            this.messages.push(msg);
-                        }
-                    });
-                    this.renderMessages();
-                    this.scrollToBottom();
-                }
-            };
-            
-            this.eventSource.onerror = () => {
-                // Fallback to polling if SSE fails
-                this.startPolling();
-            };
-        } else {
-            // Fallback for older browsers
-            this.startPolling();
-        }
-    }
-    
-    loadSettings() {
-        document.getElementById('username').value = this.username;
-        document.getElementById('targetLang').value = this.targetLang;
-        
-        document.querySelectorAll('.color-option').forEach(el => {
-            if (el.dataset.color === this.color) {
-                el.classList.add('selected');
-            }
-        });
-    }
-    
     bindEvents() {
+        // 发送消息
         document.getElementById('sendBtn').addEventListener('click', () => this.sendMessage());
         document.getElementById('messageInput').addEventListener('keypress', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
@@ -86,16 +29,8 @@ class PolyChat {
             }
         });
         
-        document.getElementById('username').addEventListener('change', (e) => {
-            this.username = e.target.value.trim();
-            localStorage.setItem('polychat_username', this.username);
-        });
-        
-        const savedColor = localStorage.getItem('polychat_color') || this.color;
+        // 颜色选择
         document.querySelectorAll('.color-option').forEach(el => {
-            if (el.dataset.color === savedColor) {
-                el.classList.add('selected');
-            }
             el.addEventListener('click', () => {
                 document.querySelectorAll('.color-option').forEach(o => o.classList.remove('selected'));
                 el.classList.add('selected');
@@ -104,17 +39,50 @@ class PolyChat {
             });
         });
         
+        // 语言选择
         document.getElementById('targetLang').addEventListener('change', (e) => {
             this.targetLang = e.target.value;
             localStorage.setItem('polychat_lang', this.targetLang);
         });
         
+        // 房间选择
+        document.getElementById('roomSelect').addEventListener('change', (e) => {
+            this.roomId = e.target.value;
+            this.messages = [];
+            this.loadMessages();
+        });
+        
+        // 表情选择
         document.querySelectorAll('.emoji-btn').forEach(btn => {
             btn.addEventListener('click', () => {
-                const emoji = btn.dataset.emoji;
-                this.sendEmojiMessage(emoji);
+                this.sendEmojiMessage(btn.dataset.emoji);
             });
         });
+    }
+    
+    async loadRooms() {
+        try {
+            const response = await fetch('api.php?action=rooms');
+            const result = await response.json();
+            
+            if (result.success) {
+                const select = document.getElementById('roomSelect');
+                select.innerHTML = '';
+                
+                result.rooms.forEach(room => {
+                    const option = document.createElement('option');
+                    option.value = room.id;
+                    option.textContent = room.name;
+                    select.appendChild(option);
+                });
+                
+                if (result.rooms.length > 0) {
+                    document.getElementById('currentRoomName').textContent = result.rooms[0].name;
+                }
+            }
+        } catch (error) {
+            console.error('加载房间失败:', error);
+        }
     }
     
     async sendMessage() {
@@ -122,26 +90,21 @@ class PolyChat {
         const text = input.value.trim();
         
         if (!text) return;
-        if (!this.username || this.username.length < 2) {
-            alert('请先输入用户名！');
-            document.getElementById('username').focus();
-            return;
-        }
         
-        this.username = document.getElementById('username').value.trim() || this.username;
-        localStorage.setItem('polychat_username', this.username);
+        const username = this.user.username || '游客';
         
         const btn = document.getElementById('sendBtn');
         btn.disabled = true;
-        btn.innerHTML = '<span class="spinner"></span>';
         
         try {
             const formData = new FormData();
             formData.append('action', 'send');
-            formData.append('username', this.username);
+            formData.append('username', username);
+            formData.append('user_id', this.user.id || 0);
             formData.append('text', text);
             formData.append('color', this.color);
             formData.append('target_lang', this.targetLang);
+            formData.append('room_id', this.roomId);
             formData.append('emoji', '');
             
             const response = await fetch('api.php', {
@@ -155,37 +118,26 @@ class PolyChat {
                 input.value = '';
                 this.addMessage(result.message);
                 this.scrollToBottom();
-            } else {
-                alert('发送失败: ' + (result.error || '未知错误'));
             }
         } catch (error) {
-            console.error('发送错误:', error);
-            alert('网络错误，请重试');
+            console.error('发送失败:', error);
         } finally {
             btn.disabled = false;
-            const sendText = i18n ? i18n.t('send') : '发送';
-            btn.innerHTML = '🚀 ' + sendText;
         }
     }
     
     async sendEmojiMessage(emoji) {
-        if (!this.username || this.username.length < 2) {
-            this.username = document.getElementById('username').value.trim() || this.username;
-        }
-        
-        if (!this.username || this.username.length < 2) {
-            alert('请先输入用户名！');
-            document.getElementById('username').focus();
-            return;
-        }
+        const username = this.user.username || '游客';
         
         try {
             const formData = new FormData();
             formData.append('action', 'send');
-            formData.append('username', this.username);
+            formData.append('username', username);
+            formData.append('user_id', this.user.id || 0);
             formData.append('text', emoji + ' ' + emoji + ' ' + emoji);
             formData.append('color', this.color);
             formData.append('target_lang', this.targetLang);
+            formData.append('room_id', this.roomId);
             formData.append('emoji', emoji);
             
             const response = await fetch('api.php', {
@@ -200,20 +152,19 @@ class PolyChat {
                 this.scrollToBottom();
             }
         } catch (error) {
-            console.error('发送错误:', error);
+            console.error('发送失败:', error);
         }
     }
     
     async loadMessages() {
         try {
-            const response = await fetch('api.php?action=messages&limit=50');
+            const response = await fetch(`api.php?action=messages&room_id=${this.roomId}&limit=50`);
             const result = await response.json();
             
             if (result.success) {
                 const newMessages = result.messages;
                 const latestTime = newMessages.length > 0 ? newMessages[newMessages.length - 1].created_at : '';
                 
-                // Only update if there are new messages (by timestamp)
                 if (latestTime && latestTime !== this.lastMessageTime) {
                     this.lastMessageTime = latestTime;
                     this.messages = newMessages;
@@ -221,27 +172,46 @@ class PolyChat {
                 }
             }
         } catch (error) {
-            console.error('加载消息错误:', error);
+            console.error('加载消息失败:', error);
         }
     }
     
-    startPolling() {
-        this.pollingInterval = setInterval(() => {
-            this.loadMessages();
-        }, 3000);
+    startSSE() {
+        if (typeof EventSource !== 'undefined') {
+            const lastId = this.messages.length > 0 ? this.messages[this.messages.length - 1].id : 0;
+            this.eventSource = new EventSource(`sse.php?last_id=${lastId}&room_id=${this.roomId}`);
+            
+            this.eventSource.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                
+                if (data.type === 'new_messages') {
+                    data.messages.forEach(msg => {
+                        if (!this.messages.find(m => m.id === msg.id) && msg.room_id == this.roomId) {
+                            this.messages.push(msg);
+                        }
+                    });
+                    this.renderMessages();
+                    this.scrollToBottom();
+                }
+            };
+            
+            this.eventSource.onerror = () => {
+                this.pollingInterval = setInterval(() => this.loadMessages(), 5000);
+            };
+        } else {
+            this.pollingInterval = setInterval(() => this.loadMessages(), 5000);
+        }
     }
     
     renderMessages() {
         const container = document.getElementById('messagesContainer');
         
         if (this.messages.length === 0) {
-            const emptyText = i18n ? i18n.t('emptyState') : '还没有消息';
-            const emptySub = i18n ? i18n.t('emptyStateSub') : '成为第一个说话的人吧！';
             container.innerHTML = `
                 <div class="empty-state">
                     <div class="empty-icon">💬</div>
-                    <p>${emptyText}</p>
-                    <p>${emptySub}</p>
+                    <p>还没有消息</p>
+                    <p>成为第一个说话的人吧！</p>
                 </div>
             `;
             return;
@@ -251,12 +221,9 @@ class PolyChat {
         
         container.querySelectorAll('.like-btn').forEach(btn => {
             btn.addEventListener('click', () => {
-                const msgId = parseInt(btn.dataset.msgId);
-                this.likeMessage(msgId);
+                this.likeMessage(parseInt(btn.dataset.msgId));
             });
         });
-        
-        this.scrollToBottom();
     }
     
     addMessage(msg) {
@@ -266,28 +233,24 @@ class PolyChat {
     }
     
     async likeMessage(msgId) {
+        const username = this.user.username || '游客';
+        
         try {
             const formData = new FormData();
             formData.append('action', 'like');
             formData.append('msg_id', msgId);
-            formData.append('username', this.username);
+            formData.append('username', username);
             
-            const response = await fetch('api.php', {
-                method: 'POST',
-                body: formData
-            });
-            
+            const response = await fetch('api.php', { method: 'POST', body: formData });
             const result = await response.json();
             
             if (result.success) {
                 const msg = this.messages.find(m => m.id === msgId);
-                if (msg) {
-                    msg.likes = result.likes;
-                }
+                if (msg) msg.likes = result.likes;
                 this.renderMessages();
             }
         } catch (error) {
-            console.error('点赞错误:', error);
+            console.error('点赞失败:', error);
         }
     }
     
@@ -296,23 +259,17 @@ class PolyChat {
         const time = this.formatTime(msg.created_at);
         
         let translationHTML = '';
-        // Only show translation if it's different from original
-        if (msg.translated_text && msg.translated_text !== msg.original_text && msg.target_lang !== msg.original_lang) {
-            translationHTML = `
-                <div class="message-translation">
-                    🌐 ${this.escapeHTML(msg.translated_text)}
-                </div>
-            `;
+        if (msg.translated_text && msg.translated_text !== msg.original_text) {
+            translationHTML = `<div class="message-translation">🌐 ${this.escapeHTML(msg.translated_text)}</div>`;
         }
         
         const likedBy = msg.liked_by ? JSON.parse(msg.liked_by) : [];
-        const isLiked = likedBy.includes(this.username);
+        const username = this.user.username || '游客';
+        const isLiked = likedBy.includes(username);
         
         return `
             <div class="message">
-                <div class="avatar" style="background: ${msg.color}">
-                    ${initial}
-                </div>
+                <div class="avatar" style="background: ${msg.color}">${initial}</div>
                 <div class="message-content">
                     <div class="message-header">
                         <span class="username" style="color: ${msg.color}">${this.escapeHTML(msg.username)}</span>
@@ -331,22 +288,10 @@ class PolyChat {
     }
     
     formatTime(timestamp) {
-        // Parse timestamp - treat as UTC then convert to Tokyo
         const date = new Date(timestamp);
-        
-        if (isNaN(date.getTime())) {
-            // Fallback: try parsing manually
-            const parts = timestamp.split(/[- :]/);
-            if (parts.length >= 6) {
-                date = new Date(Date.UTC(parts[0], parts[1]-1, parts[2], parts[3], parts[4], parts[5]));
-            }
-        }
-        
-        // Convert to Tokyo time (UTC+9)
         const tokyoOffset = 9 * 60 * 60 * 1000;
         const tokyoTime = new Date(date.getTime() + tokyoOffset);
         
-        // Current time in Tokyo
         const now = new Date();
         const nowUTC = now.getTime() - (now.getTimezoneOffset() * 60000);
         const nowTokyo = new Date(nowUTC + tokyoOffset);
@@ -357,14 +302,10 @@ class PolyChat {
         if (diff < 3600000) return Math.floor(diff / 60000) + '分钟前';
         if (diff < 86400000) return Math.floor(diff / 3600000) + '小时前';
         
-        // Format: 2月19日 17:31
         const months = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
-        const month = months[tokyoTime.getMonth()];
-        const day = tokyoTime.getDate();
-        const hour = tokyoTime.getHours().toString().padStart(2, '0');
-        const min = tokyoTime.getMinutes().toString().padStart(2, '0');
-        
-        return month + day + '日 ' + hour + ':' + min;
+        return months[tokyoTime.getMonth()] + tokyoTime.getDate() + '日 ' + 
+               tokyoTime.getHours().toString().padStart(2,'0') + ':' + 
+               tokyoTime.getMinutes().toString().padStart(2,'0');
     }
     
     scrollToBottom() {
