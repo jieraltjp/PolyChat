@@ -2,44 +2,94 @@
 
 多语言实时聊天室 - 跨越语言障碍，连接世界各地的朋友
 
-![Version](https://img.shields.io/badge/version-1.0-blue)
+![Version](https://img.shields.io/badge/version-2.0-blue)
 ![PHP](https://img.shields.io/badge/PHP-5.6+-orange)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 ## ✨ 功能特性
 
+### 已完成
 - 🌐 **多语言实时翻译** - 支持 12+ 种语言自动翻译
 - 💬 **双语显示** - 同时显示原文和翻译
 - 🎨 **个性化** - 自定义用户名和头像颜色
 - 📱 **响应式设计** - 支持手机和电脑访问
-- 🖥️ **局域网访问** - 支持本地部署
+- ❤️ **点赞功能** - 点赞/取消点赞
+- ✨ **表情发送** - 快捷发送表情
+- 🔔 **实时推送** - SSE 实时消息推送
+- 🌐 **多语言UI** - 12种界面语言
+- 👥 **用户系统** - 注册/登录 (v2.0)
+- 🏠 **房间系统** - 多个聊天室 (v2.0)
+
+### 开发中
+- 🔒 **私聊功能**
+- ✏️ **消息编辑/撤回**
+- 🖼️ **用户头像**
 
 ## 🚀 快速开始
 
 ### 环境要求
-
 - PHP 5.6+
-- Node.js (用于翻译服务)
-- SQLite3 (内置，无需配置)
+- Node.js (翻译服务)
+- SQLite3
 
-### 安装步骤
-
+### 安装
 ```bash
-# 1. 克隆项目
 git clone https://github.com/jieraltjp/PolyChat.git
 cd PolyChat
 
-# 2. 启动翻译服务 (端口 16689)
+# 启动翻译服务
 node translate.js &
 
-# 3. 启动 PHP 服务器 (端口 16688)
+# 启动PHP服务器
 php -S 0.0.0.0:16688 -t .
 ```
 
 ### 访问
-
 - 本机: http://localhost:16688
 - 局域网: http://你的IP:16688
+
+## 📡 API 接口 (v2.0)
+
+### 认证
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | /api.php?action=register | 注册用户 |
+| POST | /api.php?action=login | 用户登录 |
+| POST | /api.php?action=logout | 登出 |
+
+### 用户
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | /api.php?action=users | 获取用户列表 |
+| GET | /api.php?action=profile | 获取个人信息 |
+
+### 消息
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | /api.php?action=messages | 获取消息列表 |
+| POST | /api.php?action=send | 发送消息 |
+| POST | /api.php?action=like | 点赞消息 |
+
+### 房间
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | /api.php?action=rooms | 获取房间列表 |
+| POST | /api.php?action=create_room | 创建房间 |
+
+## 📁 项目结构
+
+```
+polychat/
+├── index.php       # 主页面
+├── api.php        # API接口 (v2.0)
+├── db.php         # 数据库 (v2.0)
+├── app.js         # 前端逻辑
+├── i18n.js        # 多语言支持
+├── style.css      # 样式
+├── translate.js   # 翻译服务
+├── sse.php        # 实时推送
+└── chat.db        # SQLite数据库
+```
 
 ## 🌐 支持的语言
 
@@ -58,35 +108,10 @@ php -S 0.0.0.0:16688 -t .
 | pt | Português |
 | it | Italiano |
 
-## 📁 项目结构
+## 🤖 开发团队
 
-```
-polychat/
-├── index.php      # 主页面
-├── api.php        # API 接口
-├── db.php         # 数据库 & 翻译
-├── app.js         # 前端逻辑
-├── i18n.js        # 多语言支持
-├── style.css      # 样式
-├── translate.js   # Node.js 翻译服务
-└── composer.json  # Composer 配置
-```
-
-## 🔧 技术栈
-
-- **后端**: PHP 5.6 + SQLite
-- **前端**: Vanilla JavaScript + CSS3
-- **翻译**: Google Translate API (本地代理)
-- **部署**: 内置 PHP 服务器
-
-## 🤖 开发维护
-
-本项目由 **jieraltjp** 开发维护。
+本项目由 **jieraltjp** 开发维护
 
 ## 📄 许可证
 
 MIT License
-
----
-
-让语言不再是障碍，让世界更加紧密 🌍

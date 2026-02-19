@@ -1,47 +1,110 @@
 <?php
-// 数据库初始化
+// 数据库初始化 - PolyChat v2.0
 $db_file = __DIR__ . '/chat.db';
 
 try {
     $pdo = new PDO('sqlite:' . $db_file);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     
-    // 创建表
+    // 用户表
     $pdo->exec("CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE NOT NULL,
+        password TEXT,
+        email TEXT,
+        avatar TEXT,
         color TEXT DEFAULT '#6366f1',
+        role TEXT DEFAULT 'user',
+        status TEXT DEFAULT 'online',
+        last_active DATETIME,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )");
     
+    // 消息表
     $pdo->exec("CREATE TABLE IF NOT EXISTS messages (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
+        room_id INTEGER DEFAULT 1,
+        parent_id INTEGER DEFAULT 0,
         original_text TEXT NOT NULL,
         translated_text TEXT,
         original_lang TEXT DEFAULT 'auto',
         target_lang TEXT DEFAULT 'zh',
         emoji TEXT DEFAULT '',
         likes INTEGER DEFAULT 0,
-        liked_by TEXT DEFAULT '',
+        liked_by TEXT DEFAULT '[]',
+        is_deleted INTEGER DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME,
         FOREIGN KEY (user_id) REFERENCES users(id)
     )");
+    
+    // 房间表
+    $pdo->exec("CREATE TABLE IF NOT EXISTS rooms (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        description TEXT,
+        type TEXT DEFAULT 'public',
+        created_by INTEGER,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )");
+    
+    // 创建默认公共房间
+    $pdo->exec("INSERT OR IGNORE INTO rooms (id, name, description, type) VALUES (1, '公共聊天室', '所有人可以在这里聊天', 'public')");
+    
+    // 添加缺失的列 (兼容旧数据库)
+    $columns = $pdo->query("PRAGMA table_info(users)")->fetchAll(PDO::FETCH_ASSOC);
+    $existing_cols = array_column($columns, 'name');
+    
+    if (!in_array('password', $existing_cols)) {
+        $pdo->exec("ALTER TABLE users ADD COLUMN password TEXT");
+    }
+    if (!in_array('email', $existing_cols)) {
+        $pdo->exec("ALTER TABLE users ADD COLUMN email TEXT");
+    }
+    if (!in_array('avatar', $existing_cols)) {
+        $pdo->exec("ALTER TABLE users ADD COLUMN avatar TEXT");
+    }
+    if (!in_array('role', $existing_cols)) {
+        $pdo->exec("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'");
+    }
+    if (!in_array('status', $existing_cols)) {
+        $pdo->exec("ALTER TABLE users ADD COLUMN status TEXT DEFAULT 'online'");
+    }
+    if (!in_array('last_active', $existing_cols)) {
+        $pdo->exec("ALTER TABLE users ADD COLUMN last_active DATETIME");
+    }
+    
+    // 消息表新增列
+    $msg_columns = $pdo->query("PRAGMA table_info(messages)")->fetchAll(PDO::FETCH_ASSOC);
+    $existing_msg_cols = array_column($msg_columns, 'name');
+    
+    if (!in_array('room_id', $existing_msg_cols)) {
+        $pdo->exec("ALTER TABLE messages ADD COLUMN room_id INTEGER DEFAULT 1");
+    }
+    if (!in_array('parent_id', $existing_msg_cols)) {
+        $pdo->exec("ALTER TABLE messages ADD COLUMN parent_id INTEGER DEFAULT 0");
+    }
+    if (!in_array('is_deleted', $existing_msg_cols)) {
+        $pdo->exec("ALTER TABLE messages ADD COLUMN is_deleted INTEGER DEFAULT 0");
+    }
+    if (!in_array('updated_at', $existing_msg_cols)) {
+        $pdo->exec("ALTER TABLE messages ADD COLUMN updated_at DATETIME");
+    }
+    
+    // 创建索引
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_messages_room ON messages(room_id)");
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_messages_created ON messages(created_at DESC)");
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_users_last_active ON users(last_active)");
     
 } catch (PDOException $e) {
     die("数据库错误: " . $e->getMessage());
 }
 
-// 添加缺失的列
-try {
-    $pdo->exec("ALTER TABLE messages ADD COLUMN emoji TEXT DEFAULT ''");
-} catch (Exception $e) {}
-try {
-    $pdo->exec("ALTER TABLE messages ADD COLUMN likes INTEGER DEFAULT 0");
-} catch (Exception $e) {}
-try {
-    $pdo->exec("ALTER TABLE messages ADD COLUMN liked_by TEXT DEFAULT ''");
-} catch (Exception $e) {}
+// 时区设置
+date_default_timezone_set('Asia/Tokyo');
+
+// ========== 数据库操作函数 ==========
 
 function getUserByName($username) {
     global $pdo;
@@ -52,21 +115,24 @@ function getUserByName($username) {
 
 function createUser($username, $color) {
     global $pdo;
-    $stmt = $pdo->prepare("INSERT INTO users (username, color) VALUES (?, ?)");
+    $stmt = $pdo->prepare("INSERT INTO users (username, color, last_active) VALUES (?, ?, datetime('now'))");
     $stmt->execute([$username, $color]);
     return $pdo->lastInsertId();
 }
 
-function saveMessage($user_id, $text, $translated, $orig_lang, $target_lang, $emoji = '') {
+function saveMessage($user_id, $text, $translated, $orig_lang, $target_lang, $emoji = '', $room_id = 1, $parent_id = 0) {
     global $pdo;
-    $stmt = $pdo->prepare("INSERT INTO messages (user_id, original_text, translated_text, original_lang, target_lang, emoji) VALUES (?, ?, ?, ?, ?, ?)");
-    $stmt->execute([$user_id, $text, $translated, $orig_lang, $target_lang, $emoji]);
+    $stmt = $pdo->prepare("
+        INSERT INTO messages (user_id, room_id, parent_id, original_text, translated_text, original_lang, target_lang, emoji) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ");
+    $stmt->execute([$user_id, $room_id, $parent_id, $text, $translated, $orig_lang, $target_lang, $emoji]);
     return $pdo->lastInsertId();
 }
 
 function db_likeMessage($msg_id, $username) {
     global $pdo;
-    // 获取当前点赞信息
+    
     $stmt = $pdo->prepare("SELECT likes, liked_by FROM messages WHERE id = ?");
     $stmt->execute([$msg_id]);
     $msg = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -80,7 +146,6 @@ function db_likeMessage($msg_id, $username) {
             $stmt->execute([$new_likes, json_encode($liked_by), $msg_id]);
             return ['success' => true, 'likes' => $new_likes];
         } else {
-            // 取消点赞
             $liked_by = array_diff($liked_by, [$username]);
             $new_likes = max(0, $msg['likes'] - 1);
             $stmt = $pdo->prepare("UPDATE messages SET likes = ?, liked_by = ? WHERE id = ?");
@@ -91,30 +156,11 @@ function db_likeMessage($msg_id, $username) {
     return ['success' => false];
 }
 
-function db_getMessages($limit = 50) {
-    global $pdo;
-    $stmt = $pdo->query("
-        SELECT m.*, u.username, u.color 
-        FROM messages m 
-        JOIN users u ON m.user_id = u.id 
-        ORDER BY m.created_at DESC 
-        LIMIT $limit
-    ");
-    return array_reverse($stmt->fetchAll(PDO::FETCH_ASSOC));
-}
-
-// 设置时区为东京
-date_default_timezone_set('Asia/Tokyo');
-
 function translateText($text, $from = 'auto', $to = 'zh') {
-    // 使用本地 Node.js 翻译服务
     $url = "http://localhost:16689/?action=translate&text=" . urlencode($text) . "&from=" . $from . "&to=" . $to;
     
     $context = stream_context_create([
-        'http' => [
-            'timeout' => 10,
-            'ignore_errors' => true
-        ]
+        'http' => ['timeout' => 10, 'ignore_errors' => true]
     ]);
     
     $response = @file_get_contents($url, false, $context);
@@ -126,5 +172,5 @@ function translateText($text, $from = 'auto', $to = 'zh') {
         }
     }
     
-    return $text; // 翻译失败返回原文
+    return $text;
 }
