@@ -104,6 +104,6 @@ function likeMessage() {
         return;
     }
     
-    $result = likeMessage($msg_id, $username);
+    $result = db_likeMessage($msg_id, $username);
     echo json_encode($result);
 }

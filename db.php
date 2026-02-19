@@ -53,7 +53,7 @@ function saveMessage($user_id, $text, $translated, $orig_lang, $target_lang, $em
     return $pdo->lastInsertId();
 }
 
-function likeMessage($msg_id, $username) {
+function db_likeMessage($msg_id, $username) {
     global $pdo;
     // 获取当前点赞信息
     $stmt = $pdo->prepare("SELECT likes, liked_by FROM messages WHERE id = ?");
