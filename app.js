@@ -7,6 +7,8 @@ class PolyChat {
         this.targetLang = localStorage.getItem('polychat_lang') || 'zh';
         this.messages = [];
         this.pollingInterval = null;
+        this.lastMessageId = 0;
+        this.lastUpdateTime = 0;
         
         // 保存自动生成的用户名
         localStorage.setItem('polychat_username', this.username);
@@ -64,7 +66,7 @@ class PolyChat {
             localStorage.setItem('polychat_username', this.username);
         });
         
-        // 颜色选择 - 确保选中的颜色
+        // 颜色选择
         const savedColor = localStorage.getItem('polychat_color') || this.color;
         document.querySelectorAll('.color-option').forEach(el => {
             if (el.dataset.color === savedColor) {
@@ -83,6 +85,14 @@ class PolyChat {
             this.targetLang = e.target.value;
             localStorage.setItem('polychat_lang', this.targetLang);
         });
+        
+        // 表情选择
+        document.querySelectorAll('.emoji-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const emoji = btn.dataset.emoji;
+                this.sendEmojiMessage(emoji);
+            });
+        });
     }
     
     async sendMessage() {
@@ -96,25 +106,22 @@ class PolyChat {
             return;
         }
         
-        // 更新用户名（如果用户修改了）
+        // 更新用户名
         this.username = document.getElementById('username').value.trim() || this.username;
         localStorage.setItem('polychat_username', this.username);
         
         const btn = document.getElementById('sendBtn');
         btn.disabled = true;
-        btn.innerHTML = '<span class="spinner"></span> 发送中...';
+        btn.innerHTML = '<span class="spinner"></span>';
         
         try {
-            // 获取当前用户名
-            const currentUsername = document.getElementById('username').value.trim() || this.username;
-            const currentColor = this.color;
-            
             const formData = new FormData();
             formData.append('action', 'send');
-            formData.append('username', currentUsername);
+            formData.append('username', this.username);
             formData.append('text', text);
-            formData.append('color', currentColor);
+            formData.append('color', this.color);
             formData.append('target_lang', this.targetLang);
+            formData.append('emoji', '');
             
             const response = await fetch('api.php', {
                 method: 'POST',
@@ -135,7 +142,43 @@ class PolyChat {
             alert('网络错误，请重试');
         } finally {
             btn.disabled = false;
-            btn.innerHTML = '🚀 发送';
+            btn.innerHTML = i18n.t('send');
+        }
+    }
+    
+    async sendEmojiMessage(emoji) {
+        if (!this.username || this.username.length < 2) {
+            this.username = document.getElementById('username').value.trim() || this.username;
+        }
+        
+        if (!this.username || this.username.length < 2) {
+            alert('请先输入用户名！');
+            document.getElementById('username').focus();
+            return;
+        }
+        
+        try {
+            const formData = new FormData();
+            formData.append('action', 'send');
+            formData.append('username', this.username);
+            formData.append('text', emoji + ' ' + emoji + ' ' + emoji);
+            formData.append('color', this.color);
+            formData.append('target_lang', this.targetLang);
+            formData.append('emoji', emoji);
+            
+            const response = await fetch('api.php', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                this.addMessage(result.message);
+                this.scrollToBottom();
+            }
+        } catch (error) {
+            console.error('发送错误:', error);
         }
     }
     
@@ -145,8 +188,16 @@ class PolyChat {
             const result = await response.json();
             
             if (result.success) {
-                this.messages = result.messages;
-                this.renderMessages();
+                // 检查是否有新消息，避免不必要的重渲染
+                const newMessages = result.messages;
+                const hasNew = newMessages.length > this.messages.length || 
+                    (newMessages.length > 0 && newMessages[newMessages.length - 1].id > this.lastMessageId);
+                
+                if (hasNew) {
+                    this.messages = newMessages;
+                    this.lastMessageId = newMessages.length > 0 ? newMessages[newMessages.length - 1].id : 0;
+                    this.renderMessages();
+                }
             }
         } catch (error) {
             console.error('加载消息错误:', error);
@@ -154,9 +205,10 @@ class PolyChat {
     }
     
     startPolling() {
+        // 减少轮询频率，从3秒改为5秒，减少闪烁
         this.pollingInterval = setInterval(() => {
             this.loadMessages();
-        }, 3000); // 每3秒刷新
+        }, 5000);
     }
     
     renderMessages() {
@@ -166,20 +218,62 @@ class PolyChat {
             container.innerHTML = `
                 <div class="empty-state">
                     <div class="empty-icon">💬</div>
-                    <p>还没有消息</p>
-                    <p>成为第一个说话的人吧！</p>
+                    <p data-i18n="emptyState">${i18n.t('emptyState')}</p>
+                    <p data-i18n="emptyStateSub">${i18n.t('emptyStateSub')}</p>
                 </div>
             `;
             return;
         }
         
         container.innerHTML = this.messages.map(msg => this.createMessageHTML(msg)).join('');
+        
+        // 绑定点赞事件
+        container.querySelectorAll('.like-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const msgId = parseInt(btn.dataset.msgId);
+                this.likeMessage(msgId);
+            });
+        });
+        
         this.scrollToBottom();
     }
     
     addMessage(msg) {
         this.messages.push(msg);
         this.renderMessages();
+    }
+    
+    async likeMessage(msgId) {
+        try {
+            const formData = new FormData();
+            formData.append('action', 'like');
+            formData.append('msg_id', msgId);
+            formData.append('username', this.username);
+            
+            const response = await fetch('api.php', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                // 更新本地消息的点赞数
+                const msg = this.messages.find(m => m.id === msgId);
+                if (msg) {
+                    msg.likes = result.likes;
+                    msg.liked_by = msg.liked_by ? JSON.parse(msg.liked_by) : [];
+                    if (result.unliked) {
+                        msg.liked_by = msg.liked_by.filter(u => u !== this.username);
+                    } else {
+                        msg.liked_by.push(this.username);
+                    }
+                }
+                this.renderMessages();
+            }
+        } catch (error) {
+            console.error('点赞错误:', error);
+        }
     }
     
     createMessageHTML(msg) {
@@ -190,10 +284,14 @@ class PolyChat {
         if (msg.translated_text && msg.translated_text !== msg.original_text) {
             translationHTML = `
                 <div class="message-translation">
-                    🌐 翻译: ${this.escapeHTML(msg.translated_text)}
+                    🌐 ${this.escapeHTML(msg.translated_text)}
                 </div>
             `;
         }
+        
+        // 点赞状态
+        const likedBy = msg.liked_by ? JSON.parse(msg.liked_by) : [];
+        const isLiked = likedBy.includes(this.username);
         
         return `
             <div class="message">
@@ -207,6 +305,11 @@ class PolyChat {
                     </div>
                     <div class="message-text">${this.escapeHTML(msg.original_text)}</div>
                     ${translationHTML}
+                    <div class="message-actions">
+                        <button class="like-btn ${isLiked ? 'liked' : ''}" data-msg-id="${msg.id}">
+                            ${isLiked ? '❤️' : '🤍'} <span class="like-count">${msg.likes || 0}</span>
+                        </button>
+                    </div>
                 </div>
             </div>
         `;

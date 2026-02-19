@@ -36,6 +36,22 @@
                 </div>
                 
                 <div class="input-area">
+                    <!-- 表情选择器 -->
+                    <div class="emoji-bar">
+                        <button class="emoji-btn" data-emoji="👍">👍</button>
+                        <button class="emoji-btn" data-emoji="❤️">❤️</button>
+                        <button class="emoji-btn" data-emoji="😂">😂</button>
+                        <button class="emoji-btn" data-emoji="😮">😮</button>
+                        <button class="emoji-btn" data-emoji="😢">😢</button>
+                        <button class="emoji-btn" data-emoji="😡">😡</button>
+                        <button class="emoji-btn" data-emoji="🎉">🎉</button>
+                        <button class="emoji-btn" data-emoji="🔥">🔥</button>
+                        <button class="emoji-btn" data-emoji="👋">👋</button>
+                        <button class="emoji-btn" data-emoji="✨">✨</button>
+                        <button class="emoji-btn" data-emoji="💪">💪</button>
+                        <button class="emoji-btn" data-emoji="🌟">🌟</button>
+                    </div>
+                    
                     <div class="input-wrapper">
                         <textarea 
                             id="messageInput" 
@@ -149,89 +165,27 @@
     <script src="i18n.js"></script>
     <script src="app.js"></script>
     <script>
-        // 切换UI语言
         function changeUILang(lang) {
             i18n.setLang(lang);
             updateFeatureList();
         }
         
-        // 更新功能说明列表
         function updateFeatureList() {
             const list = document.getElementById('featureList');
             const lang = i18n.currentLang;
             const features = {
-                zh: [
-                    '• 输入消息自动翻译成您选择的语言',
-                    '• 支持 12+ 种语言实时翻译',
-                    '• 消息将显示原文和翻译',
-                    '• 选择喜欢的颜色代表自己'
-                ],
-                en: [
-                    '• Messages auto-translate to your selected language',
-                    '• Real-time translation in 12+ languages',
-                    '• Messages show original and translation',
-                    '• Choose your color'
-                ],
-                ja: [
-                    '• メッセージは自動翻訳されます',
-                    '• 12以上の言語に対応',
-                    '• 原文と翻訳を表示',
-                    '• 好きな色を選べる'
-                ],
-                ko: [
-                    '• 메시지가 자동 번역됩니다',
-                    '• 12개 이상 언어 지원',
-                    '• 원문과 번역 모두 표시',
-                    '• 원하는 색상 선택'
-                ],
-                es: [
-                    '• Los mensajes se traducen automáticamente',
-                    '• Traducción en tiempo real en 12+ idiomas',
-                    '• Muestra original y traducción',
-                    '• Elige tu color favorito'
-                ],
-                fr: [
-                    '• Messages traduits automatiquement',
-                    '• Traduction en temps réel en 12+ langues',
-                    '• Affiche original et traduction',
-                    '• Choisissez votre couleur'
-                ],
-                de: [
-                    '• Nachrichten werden automatisch übersetzt',
-                    '• Echtzeitübersetzung in 12+ Sprachen',
-                    '• Zeigt Original und Übersetzung',
-                    '• Wähle deine Farbe'
-                ],
-                ru: [
-                    '• Сообщения переводятся автоматически',
-                    '• Перевод в реальном времени на 12+ языках',
-                    '• Показывает оригинал и перевод',
-                    '• Выберите свой цвет'
-                ],
-                ar: [
-                    '• الرسائل تُترجم تلقائياً',
-                    '• ترجمة فورية بـ 12+ لغة',
-                    '• تعرض الأصل والترجمة',
-                    '• اختر لونك المفضل'
-                ],
-                hi: [
-                    '• संदेश स्वचालित रूप से अनुवादित होते हैं',
-                    '• 12+ भाषाओं में रियल-टाइम अनुवाद',
-                    '• मूल और अनुवाद दोनों दिखाता है',
-                    '• अपना रंग चुनें'
-                ],
-                pt: [
-                    '• Mensagens são traduzidas automaticamente',
-                    '• Tradução em tempo real em 12+ idiomas',
-                    '• Mostra original e tradução',
-                    '• Escolha sua cor'
-                ],
-                it: [
-                    '• I messaggi vengono tradotti automaticamente',
-                    '• Traduzione in tempo reale in 12+ lingue',
-                    '• Mostra originale e traduzione',
-                    '• Scegli il tuo colore'
-                ]
+                zh: ['• 输入消息自动翻译成您选择的语言', '• 支持 12+ 种语言实时翻译', '• 消息将显示原文和翻译', '• 选择喜欢的颜色代表自己'],
+                en: ['• Messages auto-translate to your selected language', '• Real-time translation in 12+ languages', '• Messages show original and translation', '• Choose your color'],
+                ja: ['• メッセージは自動翻訳されます', '• 12以上の言語に対応', '• 原文と翻訳を表示', '• 好きな色を選べる'],
+                ko: ['• 메시지가 자동 번역됩니다', '• 12개 이상 언어 지원', '• 원문과 번역 모두 표시', '• 원하는 색상 선택'],
+                es: ['• Los mensajes se traducen automáticamente', '• Traducción en tiempo real en 12+ idiomas', '• Muestra original y traducción', '• Elige tu color favorito'],
+                fr: ['• Messages traduits automatiquement', '• Traduction en temps réel en 12+ langues', '• Affiche original et traduction', '• Choisissez votre couleur'],
+                de: ['• Nachrichten werden automatisch übersetzt', '• Echtzeitübersetzung in 12+ Sprachen', '• Zeigt Original und Übersetzung', '• Wähle deine Farbe'],
+                ru: ['• Сообщения переводятся автоматически', '• Перевод в реальном времени на 12+ языках', '• Показывает оригинал и перевод', '• Выберите свой цвет'],
+                ar: ['• الرسائل تُترجم تلقائياً', '• ترجمة فورية بـ 12+ لغة', '• تعرض الأصل والترجمة', '• اختر لونك المفضل'],
+                hi: ['• संदेश स्वचालित रूप से अनुवादित होते हैं', '• 12+ भाषाओं में रियल-टाइम अनुवाद', '• मूल और अनुवाद दोनों दिखाता है', '• अपना रंग चुनें'],
+                pt: ['• Mensagens são traduzidas automaticamente', '• Tradução em tempo real em 12+ idiomas', '• Mostra original e tradução', '• Escolha sua cor'],
+                it: ['• I messaggi vengono tradotti automaticamente', '• Traduzione in tempo reale in 12+ lingue', '• Mostra originale e traduzione', '• Scegli il tuo colore']
             };
             
             let html = features[lang] ? features[lang].map(f => `<p>${f}</p>`).join('') : features['zh'].map(f => `<p>${f}</p>`).join('');
@@ -239,11 +193,8 @@
             list.innerHTML = html;
         }
         
-        // 页面加载完成后初始化i18n
         document.addEventListener('DOMContentLoaded', function() {
             i18n.init();
-            
-            // 设置语言选择器的值
             const savedLang = localStorage.getItem('polychat_ui_lang') || 'zh';
             document.getElementById('uiLang').value = savedLang;
             updateFeatureList();
