@@ -165,49 +165,12 @@
     <script src="i18n.js"></script>
     <script src="app.js"></script>
     <script>
-        console.log('i18n loaded:', typeof i18n);
-        console.log('PolyChat loaded:', typeof PolyChat);
-        
         function changeUILang(lang) {
-            console.log('Changing UI lang to:', lang);
             i18n.setLang(lang);
-            updateFeatureList();
-        }
-        
-        function updateFeatureList() {
-            const list = document.getElementById('featureList');
-            if (!list) return;
-            const lang = i18n.currentLang;
-            const features = {
-                zh: ['• 输入消息自动翻译成您选择的语言', '• 支持 12+ 种语言实时翻译', '• 消息将显示原文和翻译', '• 选择喜欢的颜色代表自己'],
-                en: ['• Messages auto-translate to your selected language', '• Real-time translation in 12+ languages', '• Messages show original and translation', '• Choose your color'],
-                ja: ['• メッセージは自動翻訳されます', '• 12以上の言語に対応', '• 原文と翻訳を表示', '• 好きな色を選べる'],
-                ko: ['• 메시지가 자동 번역됩니다', '• 12개 이상 언어 지원', '• 원문과 번역 모두 표시', '• 원하는 색상 선택'],
-                es: ['• Los mensajes se traducen automáticamente', '• Traducción en tiempo real en 12+ idiomas', '• Muestra original y traducción', '• Elige tu color favorito'],
-                fr: ['• Messages traduits automatiquement', '• Traduction en temps réel en 12+ langues', '• Affiche original et traduction', '• Choisissez votre couleur'],
-                de: ['• Nachrichten werden automatisch übersetzt', '• Echtzeitübersetzung in 12+ Sprachen', '• Zeigt Original und Übersetzung', '• Wähle deine Farbe'],
-                ru: ['• Сообщения переводятся автоматически', '• Перевод в реальном времени на 12+ языках', '• Показывает оригинал и перевод', '• Выберите свой цвет'],
-                ar: ['• الرسائل تُترجم تلقائياً', '• ترجمة فورية بـ 12+ لغة', '• تعرض الأصل والترجمة', '• اختر لونك المفضل'],
-                hi: ['• संदेश स्वचालित रूप से अनुवादित होते हैं', '• 12+ भाषाओं में रियल-टाइम अनुवाद', '• मूल और अनुवाद दोनों दिखाता है', '• अपना रंग चुनें'],
-                pt: ['• Mensagens são traduzidas automaticamente', '• Tradução em tempo real em 12+ idiomas', '• Mostra original e tradução', '• Escolha sua cor'],
-                it: ['• I messaggi vengono tradotti automaticamente', '• Traduzione in tempo reale in 12+ lingue', '• Mostra originale e traduzione', '• Scegli il tuo colore']
-            };
-            
-            let html = features[lang] ? features[lang].map(f => `<p>${f}</p>`).join('') : features['zh'].map(f => `<p>${f}</p>`).join('');
-            html += `<p style="margin-top: 12px; padding: 10px; background: var(--glass); border-radius: 8px;" data-i18n="featureHighlight">${i18n.t('featureHighlight')}</p>`;
-            list.innerHTML = html;
         }
         
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('DOM loaded, initializing i18n...');
             i18n.init();
-            const savedLang = localStorage.getItem('polychat_ui_lang') || 'zh';
-            const langSelect = document.getElementById('uiLang');
-            if (langSelect) {
-                langSelect.value = savedLang;
-                console.log('UI language set to:', savedLang);
-            }
-            updateFeatureList();
         });
     </script>
 </body>
