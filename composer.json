@@ -1,0 +1,13 @@
+{
+    "name": "polychat/chat",
+    "description": "多语言实时聊天室 - 支持语言转换",
+    "type": "project",
+    "require": {
+        "php": ">=5.6.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "PolyChat\\": "src/"
+        }
+    }
+}
