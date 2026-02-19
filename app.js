@@ -331,34 +331,40 @@ class PolyChat {
     }
     
     formatTime(timestamp) {
-        // timestamp from server is in format "2026-02-19 17:31:24"
-        // Parse it and treat as Tokyo time
-        const parts = timestamp.split(/[- :]/);
-        if (parts.length >= 6) {
-            // Create date in Tokyo timezone (UTC+9)
-            // Year, Month-1, Day, Hour, Minute, Second
-            const date = new Date(parts[0], parts[1] - 1, parts[2], parts[3], parts[4], parts[5]);
-            
-            // Current time in UTC+9
-            const now = new Date();
-            const nowUTC = now.getTime() + (now.getTimezoneOffset() * 60000);
-            const nowTokyo = nowUTC + (9 * 60 * 60 * 1000);
-            
-            const diff = nowTokyo - date.getTime();
-            
-            if (diff < 60000) return '刚刚';
-            if (diff < 3600000) return Math.floor(diff / 60000) + '分钟前';
-            if (diff < 86400000) return Math.floor(diff / 3600000) + '小时前';
-            
-            const months = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
-            const month = months[date.getMonth()];
-            const day = date.getDate();
-            const hour = date.getHours().toString().padStart(2, '0');
-            const min = date.getMinutes().toString().padStart(2, '0');
-            
-            return month + day + '日 ' + hour + ':' + min;
+        // Parse timestamp - treat as UTC then convert to Tokyo
+        const date = new Date(timestamp);
+        
+        if (isNaN(date.getTime())) {
+            // Fallback: try parsing manually
+            const parts = timestamp.split(/[- :]/);
+            if (parts.length >= 6) {
+                date = new Date(Date.UTC(parts[0], parts[1]-1, parts[2], parts[3], parts[4], parts[5]));
+            }
         }
-        return timestamp;
+        
+        // Convert to Tokyo time (UTC+9)
+        const tokyoOffset = 9 * 60 * 60 * 1000;
+        const tokyoTime = new Date(date.getTime() + tokyoOffset);
+        
+        // Current time in Tokyo
+        const now = new Date();
+        const nowUTC = now.getTime() - (now.getTimezoneOffset() * 60000);
+        const nowTokyo = new Date(nowUTC + tokyoOffset);
+        
+        const diff = nowTokyo - tokyoTime;
+        
+        if (diff < 60000) return '刚刚';
+        if (diff < 3600000) return Math.floor(diff / 60000) + '分钟前';
+        if (diff < 86400000) return Math.floor(diff / 3600000) + '小时前';
+        
+        // Format: 2月19日 17:31
+        const months = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+        const month = months[tokyoTime.getMonth()];
+        const day = tokyoTime.getDate();
+        const hour = tokyoTime.getHours().toString().padStart(2, '0');
+        const min = tokyoTime.getMinutes().toString().padStart(2, '0');
+        
+        return month + day + '日 ' + hour + ':' + min;
     }
     
     scrollToBottom() {
