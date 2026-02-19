@@ -32,7 +32,38 @@ class PolyChat {
         this.loadSettings();
         this.bindEvents();
         this.loadMessages();
-        this.startPolling();
+        this.startSSE();
+    }
+    
+    startSSE() {
+        // Use Server-Sent Events for real-time updates
+        if (typeof EventSource !== 'undefined') {
+            const lastId = this.messages.length > 0 ? this.messages[this.messages.length - 1].id : 0;
+            this.eventSource = new EventSource('sse.php?last_id=' + lastId);
+            
+            this.eventSource.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                
+                if (data.type === 'new_messages') {
+                    // Add new messages to the list
+                    data.messages.forEach(msg => {
+                        if (!this.messages.find(m => m.id === msg.id)) {
+                            this.messages.push(msg);
+                        }
+                    });
+                    this.renderMessages();
+                    this.scrollToBottom();
+                }
+            };
+            
+            this.eventSource.onerror = () => {
+                // Fallback to polling if SSE fails
+                this.startPolling();
+            };
+        } else {
+            // Fallback for older browsers
+            this.startPolling();
+        }
     }
     
     loadSettings() {
@@ -300,20 +331,34 @@ class PolyChat {
     }
     
     formatTime(timestamp) {
-        // Tokyo timezone: UTC+9
-        const date = new Date(timestamp);
-        const tokyoTime = new Date(date.getTime() + (9 * 60 * 60 * 1000));
-        
-        const now = new Date();
-        const nowTokyo = new Date(now.getTime() + (9 * 60 * 60 * 1000));
-        const diff = nowTokyo - tokyoTime;
-        
-        if (diff < 60000) return '刚刚';
-        if (diff < 3600000) return Math.floor(diff / 60000) + '分钟前';
-        if (diff < 86400000) return Math.floor(diff / 3600000) + '小时前';
-        
-        return tokyoTime.toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' }) + 
-               ' ' + tokyoTime.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+        // timestamp from server is in format "2026-02-19 17:31:24"
+        // Parse it and treat as Tokyo time
+        const parts = timestamp.split(/[- :]/);
+        if (parts.length >= 6) {
+            // Create date in Tokyo timezone (UTC+9)
+            // Year, Month-1, Day, Hour, Minute, Second
+            const date = new Date(parts[0], parts[1] - 1, parts[2], parts[3], parts[4], parts[5]);
+            
+            // Current time in UTC+9
+            const now = new Date();
+            const nowUTC = now.getTime() + (now.getTimezoneOffset() * 60000);
+            const nowTokyo = nowUTC + (9 * 60 * 60 * 1000);
+            
+            const diff = nowTokyo - date.getTime();
+            
+            if (diff < 60000) return '刚刚';
+            if (diff < 3600000) return Math.floor(diff / 60000) + '分钟前';
+            if (diff < 86400000) return Math.floor(diff / 3600000) + '小时前';
+            
+            const months = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+            const month = months[date.getMonth()];
+            const day = date.getDate();
+            const hour = date.getHours().toString().padStart(2, '0');
+            const min = date.getMinutes().toString().padStart(2, '0');
+            
+            return month + day + '日 ' + hour + ':' + min;
+        }
+        return timestamp;
     }
     
     scrollToBottom() {
