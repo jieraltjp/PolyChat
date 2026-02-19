@@ -24,7 +24,7 @@ switch ($action) {
         getOnlineUsers();
         break;
     case 'like':
-        likeMessage();
+        handleLike();
         break;
     default:
         echo json_encode(['error' => 'Unknown action']);
@@ -93,7 +93,7 @@ function getOnlineUsers() {
     echo json_encode(['success' => true, 'users' => $users]);
 }
 
-function likeMessage() {
+function handleLike() {
     global $pdo;
     
     $msg_id = isset($_POST['msg_id']) ? intval($_POST['msg_id']) : 0;
