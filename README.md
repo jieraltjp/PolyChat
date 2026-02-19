@@ -79,9 +79,9 @@ polychat/
 - **翻译**: Google Translate API (本地代理)
 - **部署**: 内置 PHP 服务器
 
-## 🤖 由 OpenClaw AI 驱动
+## 🤖 开发维护
 
-本项目由 OpenClaw AI 助手开发维护。
+本项目由 **jieraltjp** 开发维护。
 
 ## 📄 许可证
 
