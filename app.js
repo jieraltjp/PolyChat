@@ -7,7 +7,9 @@ class PolyChat {
         this.messages = [];
         this.pollingInterval = null;
         this.lastMessageTime = 0;
-        this.roomId = 1;
+        
+        // 读取上次所在的房间
+        this.roomId = parseInt(localStorage.getItem('polychat_last_room')) || 1;
         
         this.init();
     }
@@ -155,7 +157,8 @@ class PolyChat {
         // 房间选择
         document.getElementById('roomSelect').addEventListener('change', (e) => {
             this.roomId = e.target.value;
-            this.messages = []; // 清空消息
+            localStorage.setItem('polychat_last_room', this.roomId);
+            this.messages = [];
             this.lastMessageTime = 0;
             document.getElementById('currentRoomName').textContent = e.target.options[e.target.selectedIndex].text;
             this.loadMessages();
@@ -183,11 +186,24 @@ class PolyChat {
                     const option = document.createElement('option');
                     option.value = room.id;
                     option.textContent = room.name;
+                    option.dataset.type = room.type;
                     select.appendChild(option);
                 });
                 
+                // 选择上次所在的房间
+                select.value = this.roomId;
+                
                 if (result.rooms.length > 0) {
-                    document.getElementById('currentRoomName').textContent = result.rooms[0].name;
+                    // 确保 roomId 有效
+                    const room = result.rooms.find(r => r.id == this.roomId);
+                    if (room) {
+                        document.getElementById('currentRoomName').textContent = room.name;
+                        this.setRoomType(room.id, room.type);
+                    } else {
+                        this.roomId = result.rooms[0].id;
+                        document.getElementById('currentRoomName').textContent = result.rooms[0].name;
+                        localStorage.setItem('polychat_last_room', this.roomId);
+                    }
                 }
             }
         } catch (error) {
