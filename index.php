@@ -176,6 +176,25 @@
                         <p>• 实时推送消息</p>
                     </div>
                 </div>
+                
+                <!-- 管理员面板 -->
+                <div class="sidebar-card" id="adminPanel" style="display:none;">
+                    <div class="sidebar-title">⚙️ 管理员配置</div>
+                    <div class="setup-form">
+                        <div class="form-group">
+                            <label>翻译服务</label>
+                            <select id="translatorSelect" class="lang-select">
+                                <option value="google">Google 翻译</option>
+                                <option value="local">本地翻译服务</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>创建聊天室</label>
+                            <input type="text" id="newRoomName" class="form-input" placeholder="房间名称">
+                        </div>
+                        <button class="btn-primary" id="createRoomBtn" style="margin-top:8px;">创建房间</button>
+                    </div>
+                </div>
             </aside>
         </div>
         
@@ -233,12 +252,11 @@
             const password = document.getElementById('loginPassword').value;
             
             const formData = new FormData();
-            formData.append('action', 'login');
             formData.append('username', username);
             formData.append('password', password);
             
             try {
-                const response = await fetch('api.php', { method: 'POST', body: formData });
+                const response = await fetch('api.php?action=login', { method: 'POST', body: formData });
                 const result = await response.json();
                 
                 if (result.success) {
@@ -255,21 +273,28 @@
         // 注册
         document.getElementById('registerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
+            
             const username = document.getElementById('regUsername').value.trim();
             const password = document.getElementById('regPassword').value;
             const email = document.getElementById('regEmail').value.trim();
             const color = '#' + Math.floor(Math.random()*16777215).toString(16);
             
+            console.log('Registering:', username);
+            
             const formData = new FormData();
             formData.append('action', 'register');
             formData.append('username', username);
             formData.append('password', password);
-            formData.append('email', email);
+            if (email) formData.append('email', email);
             formData.append('color', color);
             
             try {
-                const response = await fetch('api.php', { method: 'POST', body: formData });
+                const response = await fetch('api.php?action=register', {
+                    method: 'POST',
+                    body: formData
+                });
                 const result = await response.json();
+                console.log('Register result:', result);
                 
                 if (result.success) {
                     localStorage.setItem('polychat_user', JSON.stringify(result.user));
@@ -278,7 +303,8 @@
                     alert(result.error || '注册失败');
                 }
             } catch (err) {
-                alert('网络错误');
+                console.error('Register error:', err);
+                alert('网络错误: ' + err.message);
             }
         });
         
@@ -296,6 +322,73 @@
             showAuthModal();
         });
         
+        // 加载配置
+        loadConfig();
+        
+        // 加载配置
+        async function loadConfig() {
+            const user = JSON.parse(localStorage.getItem('polychat_user') || '{}');
+            if (user.role === 'admin') {
+                document.getElementById('adminPanel').style.display = 'block';
+                
+                // 加载翻译服务配置
+                try {
+                    const res = await fetch('api.php?action=config');
+                    const data = await res.json();
+                    if (data.success && data.config) {
+                        if (data.config.translator) {
+                            document.getElementById('translatorSelect').value = data.config.translator;
+                        }
+                    }
+                } catch (e) {}
+            }
+        }
+        
+        // 创建房间
+        document.getElementById('createRoomBtn')?.addEventListener('click', async () => {
+            const name = document.getElementById('newRoomName').value.trim();
+            if (!name) {
+                alert('请输入房间名称');
+                return;
+            }
+            
+            const user = JSON.parse(localStorage.getItem('polychat_user') || '{}');
+            
+            const formData = new FormData();
+            formData.append('name', name);
+            formData.append('user_id', user.id || 0);
+            
+            try {
+                const res = await fetch('api.php?action=create_room', { method: 'POST', body: formData });
+                const data = await res.json();
+                
+                if (data.success) {
+                    alert('房间创建成功！');
+                    document.getElementById('newRoomName').value = '';
+                    window.chat.loadRooms();
+                } else {
+                    alert(data.error || '创建失败');
+                }
+            } catch (e) {
+                alert('网络错误');
+            }
+        });
+        
+        // 保存翻译服务配置
+        document.getElementById('translatorSelect')?.addEventListener('change', async (e) => {
+            const user = JSON.parse(localStorage.getItem('polychat_user') || '{}');
+            if (user.role !== 'admin') return;
+            
+            const formData = new FormData();
+            formData.append('key', 'translator');
+            formData.append('value', e.target.value);
+            formData.append('user_id', user.id);
+            
+            try {
+                await fetch('api.php?action=config', { method: 'POST', body: formData });
+            } catch (e) {}
+        });
+        
         // UI 语言
         document.getElementById('uiLang').addEventListener('change', (e) => {
             i18n.setLang(e.target.value);
@@ -303,8 +396,16 @@
         
         // 页面加载
         document.addEventListener('DOMContentLoaded', () => {
+            // 先清除旧状态，强制显示登录
+            // localStorage.removeItem('polychat_user'); // 注释掉这行，允许记住登录状态
             checkAuth();
             i18n.init();
+            
+            // 确保登录弹窗可见
+            const user = JSON.parse(localStorage.getItem('polychat_user') || '{}');
+            if (!user || !user.username) {
+                showAuthModal();
+            }
         });
     </script>
 </body>

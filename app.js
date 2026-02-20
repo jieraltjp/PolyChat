@@ -29,8 +29,13 @@ class PolyChat {
             }
         });
         
-        // 颜色选择
+        // 颜色选择 - 读取之前选择的颜色
+        const savedColor = this.user.color || localStorage.getItem('polychat_color') || '#6366f1';
         document.querySelectorAll('.color-option').forEach(el => {
+            if (el.dataset.color === savedColor) {
+                el.classList.add('selected');
+                this.color = savedColor;
+            }
             el.addEventListener('click', () => {
                 document.querySelectorAll('.color-option').forEach(o => o.classList.remove('selected'));
                 el.classList.add('selected');

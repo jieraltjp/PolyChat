@@ -157,20 +157,100 @@ function db_likeMessage($msg_id, $username) {
 }
 
 function translateText($text, $from = 'auto', $to = 'zh') {
-    $url = "http://localhost:16689/?action=translate&text=" . urlencode($text) . "&from=" . $from . "&to=" . $to;
+    // 获取翻译服务配置
+    global $pdo;
+    $translator = 'google'; // 默认
     
-    $context = stream_context_create([
-        'http' => ['timeout' => 10, 'ignore_errors' => true]
-    ]);
+    try {
+        $stmt = $pdo->prepare("SELECT value FROM config WHERE key = 'translator'");
+        $stmt->execute();
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($row) $translator = $row['value'];
+    } catch (Exception $e) {}
     
-    $response = @file_get_contents($url, false, $context);
-    
-    if ($response) {
-        $result = json_decode($response, true);
-        if ($result && isset($result['success']) && $result['success']) {
-            return $result['translated'];
+    if ($translator === 'google') {
+        return translateWithGoogle($text, $from, $to);
+    } else {
+        // 使用本地翻译服务
+        $url = "http://localhost:16689/?action=translate&text=" . urlencode($text) . "&from=" . $from . "&to=" . $to;
+        
+        $context = stream_context_create([
+            'http' => ['timeout' => 10, 'ignore_errors' => true]
+        ]);
+        
+        $response = @file_get_contents($url, false, $context);
+        
+        if ($response) {
+            $result = json_decode($response, true);
+            if ($result && isset($result['success']) && $result['success']) {
+                return $result['translated'];
+            }
         }
     }
     
     return $text;
+}
+
+function translateWithGoogle($text, $from = 'auto', $to = 'zh') {
+    // 获取 Google API Key
+    global $pdo;
+    $apiKey = '';
+    
+    try {
+        $stmt = $pdo->prepare("SELECT value FROM config WHERE key = 'google_api_key'");
+        $stmt->execute();
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($row) $apiKey = $row['value'];
+    } catch (Exception $e) {}
+    
+    if (empty($apiKey)) {
+        return $text;
+    }
+    
+    // Google Translate API
+    $url = "https://translation.googleapis.com/language/translate/v2?key=" . $apiKey;
+    $data = [
+        'q' => $text,
+        'source' => $from === 'auto' ? '' : $from,
+        'target' => $to,
+        'format' => 'text'
+    ];
+    
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+    
+    $response = curl_exec($ch);
+    curl_close($ch);
+    
+    if ($response) {
+        $result = json_decode($response, true);
+        if (isset($result['data']['translations'][0]['translatedText'])) {
+            return $result['data']['translations'][0]['translatedText'];
+        }
+    }
+    
+    return $text;
+}
+
+function getConfig($key, $default = '') {
+    global $pdo;
+    try {
+        $stmt = $pdo->prepare("SELECT value FROM config WHERE key = ?");
+        $stmt->execute([$key]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ? $row['value'] : $default;
+    } catch (Exception $e) {
+        return $default;
+    }
+}
+
+function setConfig($key, $value) {
+    global $pdo;
+    $stmt = $pdo->prepare("INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)");
+    $stmt->execute([$key, $value]);
 }

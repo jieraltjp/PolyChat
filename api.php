@@ -62,6 +62,11 @@ switch ($action) {
         createRoom();
         break;
     
+    // ========== 配置 (管理员) ==========
+    case 'config':
+        handleConfig();
+        break;
+    
     // ========== SSE ==========
     case 'sse':
         // SSE 单独处理
@@ -366,4 +371,55 @@ function createRoom() {
     $room_id = $pdo->lastInsertId();
     
     echo json_encode(['success' => true, 'room' => ['id' => $room_id, 'name' => $name]]);
+}
+
+function handleConfig() {
+    global $pdo;
+    
+    $method = $_SERVER['REQUEST_METHOD'];
+    
+    // 获取用户角色
+    $user_id = isset($_POST['user_id']) ? intval($_POST['user_id']) : 0;
+    $isAdmin = false;
+    
+    if ($user_id > 0) {
+        $stmt = $pdo->prepare("SELECT role FROM users WHERE id = ?");
+        $stmt->execute([$user_id]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($user && $user['role'] === 'admin') {
+            $isAdmin = true;
+        }
+    }
+    
+    if ($method === 'GET') {
+        // 获取配置
+        $key = isset($_GET['key']) ? $_GET['key'] : '';
+        
+        if ($key) {
+            $value = getConfig($key);
+            echo json_encode(['success' => true, 'key' => $key, 'value' => $value]);
+        } else {
+            // 获取所有配置
+            $stmt = $pdo->query("SELECT * FROM config");
+            $configs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $result = [];
+            foreach ($configs as $c) {
+                $result[$c['key']] = $c['value'];
+            }
+            echo json_encode(['success' => true, 'config' => $result]);
+        }
+    } elseif ($method === 'POST' && $isAdmin) {
+        // 更新配置
+        $key = isset($_POST['key']) ? $_POST['key'] : '';
+        $value = isset($_POST['value']) ? $_POST['value'] : '';
+        
+        if ($key) {
+            setConfig($key, $value);
+            echo json_encode(['success' => true]);
+        } else {
+            echo json_encode(['success' => false, 'error' => 'Missing key']);
+        }
+    } elseif (!$isAdmin) {
+        echo json_encode(['success' => false, 'error' => 'Permission denied']);
+    }
 }
