@@ -53,8 +53,11 @@ class PolyChat {
         // 房间选择
         document.getElementById('roomSelect').addEventListener('change', (e) => {
             this.roomId = e.target.value;
-            this.messages = [];
+            this.messages = []; // 清空消息
+            this.lastMessageTime = 0;
+            document.getElementById('currentRoomName').textContent = e.target.options[e.target.selectedIndex].text;
             this.loadMessages();
+            this.reconnectSSE();
         });
         
         // 表情选择
@@ -167,14 +170,9 @@ class PolyChat {
             const result = await response.json();
             
             if (result.success) {
-                const newMessages = result.messages;
-                const latestTime = newMessages.length > 0 ? newMessages[newMessages.length - 1].created_at : '';
-                
-                if (latestTime && latestTime !== this.lastMessageTime) {
-                    this.lastMessageTime = latestTime;
-                    this.messages = newMessages;
-                    this.renderMessages();
-                }
+                // 只保留当前房间的消息
+                this.messages = result.messages.filter(m => m.room_id == this.roomId);
+                this.renderMessages();
             }
         } catch (error) {
             console.error('加载消息失败:', error);
@@ -183,15 +181,28 @@ class PolyChat {
     
     startSSE() {
         if (typeof EventSource !== 'undefined') {
-            const lastId = this.messages.length > 0 ? this.messages[this.messages.length - 1].id : 0;
-            this.eventSource = new EventSource(`sse.php?last_id=${lastId}&room_id=${this.roomId}`);
+            this.reconnectSSE();
+        } else {
+            this.pollingInterval = setInterval(() => this.loadMessages(), 5000);
+        }
+    }
+    
+    reconnectSSE() {
+        // 关闭旧的 SSE 连接
+        if (this.eventSource) {
+            this.eventSource.close();
+        }
+        
+        if (typeof EventSource !== 'undefined') {
+            this.eventSource = new EventSource(`sse.php?last_id=0&room_id=${this.roomId}`);
             
             this.eventSource.onmessage = (event) => {
                 const data = JSON.parse(event.data);
                 
                 if (data.type === 'new_messages') {
                     data.messages.forEach(msg => {
-                        if (!this.messages.find(m => m.id === msg.id) && msg.room_id == this.roomId) {
+                        // 只添加当前房间的消息
+                        if (msg.room_id == this.roomId && !this.messages.find(m => m.id === msg.id)) {
                             this.messages.push(msg);
                         }
                     });
@@ -201,6 +212,7 @@ class PolyChat {
             };
             
             this.eventSource.onerror = () => {
+                // 降级到轮询
                 this.pollingInterval = setInterval(() => this.loadMessages(), 5000);
             };
         } else {
@@ -211,7 +223,10 @@ class PolyChat {
     renderMessages() {
         const container = document.getElementById('messagesContainer');
         
-        if (this.messages.length === 0) {
+        // 过滤当前房间的消息
+        const roomMessages = this.messages.filter(m => m.room_id == this.roomId);
+        
+        if (roomMessages.length === 0) {
             container.innerHTML = `
                 <div class="empty-state">
                     <div class="empty-icon">💬</div>
@@ -222,7 +237,7 @@ class PolyChat {
             return;
         }
         
-        container.innerHTML = this.messages.map(msg => this.createMessageHTML(msg)).join('');
+        container.innerHTML = roomMessages.map(msg => this.createMessageHTML(msg)).join('');
         
         container.querySelectorAll('.like-btn').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -232,9 +247,12 @@ class PolyChat {
     }
     
     addMessage(msg) {
-        this.messages.push(msg);
-        this.lastMessageTime = msg.created_at;
-        this.renderMessages();
+        // 只添加当前房间的消息
+        if (msg.room_id == this.roomId) {
+            this.messages.push(msg);
+            this.lastMessageTime = msg.created_at;
+            this.renderMessages();
+        }
     }
     
     async likeMessage(msgId) {
