@@ -760,3 +760,25 @@ body::before {
  } 
   
  
+ 
+ . m s g - e d i t - b t n ,   . m s g - d e l e t e - b t n   { 
+         b a c k g r o u n d :   n o n e ; 
+         b o r d e r :   n o n e ; 
+         c u r s o r :   p o i n t e r ; 
+         f o n t - s i z e :   0 . 9 r e m ; 
+         p a d d i n g :   2 p x   6 p x ; 
+         o p a c i t y :   0 . 6 ; 
+         t r a n s i t i o n :   o p a c i t y   0 . 2 s ; 
+ } 
+ 
+ . m s g - e d i t - b t n : h o v e r ,   . m s g - d e l e t e - b t n : h o v e r   { 
+         o p a c i t y :   1 ; 
+ } 
+ 
+ . m e s s a g e - h e a d e r   { 
+         d i s p l a y :   f l e x ; 
+         a l i g n - i t e m s :   c e n t e r ; 
+         g a p :   8 p x ; 
+ } 
+  
+ 

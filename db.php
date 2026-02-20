@@ -104,10 +104,23 @@ try {
         $pdo->exec("ALTER TABLE messages ADD COLUMN updated_at DATETIME");
     }
     
-    // 创建索引
+    // 创建索引 (性能优化)
     $pdo->exec("CREATE INDEX IF NOT EXISTS idx_messages_room ON messages(room_id)");
     $pdo->exec("CREATE INDEX IF NOT EXISTS idx_messages_created ON messages(created_at DESC)");
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_messages_user ON messages(user_id)");
     $pdo->exec("CREATE INDEX IF NOT EXISTS idx_users_last_active ON users(last_active)");
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_tasks_room ON tasks(room_id)");
+    
+    // 私信表
+    $pdo->exec("CREATE TABLE IF NOT EXISTS private_messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        from_user_id INTEGER NOT NULL,
+        to_user_id INTEGER NOT NULL,
+        original_text TEXT NOT NULL,
+        translated_text TEXT,
+        is_read INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )");
     
 } catch (PDOException $e) {
     die("数据库错误: " . $e->getMessage());

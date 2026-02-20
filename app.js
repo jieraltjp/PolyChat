@@ -362,6 +362,19 @@ class PolyChat {
                 this.likeMessage(parseInt(btn.dataset.msgId));
             });
         });
+        
+        // 消息操作按钮
+        container.querySelectorAll('.msg-edit-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.editMessage(parseInt(btn.dataset.msgId));
+            });
+        });
+        
+        container.querySelectorAll('.msg-delete-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.deleteMessage(parseInt(btn.dataset.msgId));
+            });
+        });
     }
     
     addMessage(msg) {
@@ -407,6 +420,7 @@ class PolyChat {
         const likedBy = msg.liked_by ? JSON.parse(msg.liked_by) : [];
         const username = this.user.username || '游客';
         const isLiked = likedBy.includes(username);
+        const isOwn = msg.username === username;
         
         return `
             <div class="message">
@@ -415,6 +429,10 @@ class PolyChat {
                     <div class="message-header">
                         <span class="username" style="color: ${msg.color}">${this.escapeHTML(msg.username)}</span>
                         <span class="time">${time}</span>
+                        ${isOwn ? `
+                            <button class="msg-edit-btn" data-msg-id="${msg.id}">✏️</button>
+                            <button class="msg-delete-btn" data-msg-id="${msg.id}">🗑️</button>
+                        ` : ''}
                     </div>
                     <div class="message-text">${this.escapeHTML(msg.original_text)}</div>
                     ${translationHTML}
@@ -426,6 +444,50 @@ class PolyChat {
                 </div>
             </div>
         `;
+    }
+    
+    async editMessage(msgId) {
+        const msg = this.messages.find(m => m.id === msgId);
+        if (!msg) return;
+        
+        const newText = prompt('编辑消息:', msg.original_text);
+        if (!newText || newText === msg.original_text) return;
+        
+        const formData = new FormData();
+        formData.append('text', newText);
+        
+        try {
+            const response = await fetch(`api.php?action=message&id=${msgId}`, {
+                method: 'PUT',
+                body: formData
+            });
+            const result = await response.json();
+            
+            if (result.success) {
+                msg.original_text = newText;
+                this.renderMessages();
+            }
+        } catch (error) {
+            console.error('编辑失败:', error);
+        }
+    }
+    
+    async deleteMessage(msgId) {
+        if (!confirm('确定删除这条消息?')) return;
+        
+        try {
+            const response = await fetch(`api.php?action=message&id=${msgId}`, {
+                method: 'DELETE'
+            });
+            const result = await response.json();
+            
+            if (result.success) {
+                this.messages = this.messages.filter(m => m.id !== msgId);
+                this.renderMessages();
+            }
+        } catch (error) {
+            console.error('删除失败:', error);
+        }
     }
     
     formatTime(timestamp) {

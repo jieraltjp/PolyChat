@@ -67,6 +67,20 @@ switch ($action) {
         handleConfig();
         break;
     
+    // ========== 私信 ==========
+    case 'private_messages':
+        getPrivateMessages();
+        break;
+    case 'send_private':
+        sendPrivateMessage();
+        break;
+    case 'mark_read':
+        markPrivateRead();
+        break;
+    case 'all_users':
+        getAllUsers();
+        break;
+    
     // ========== SSE ==========
     case 'sse':
         // SSE 单独处理
@@ -499,4 +513,90 @@ function deleteTask() {
     $stmt->execute([$task_id]);
     
     echo json_encode(['success' => true]);
+}
+
+// ========== 私信功能 ==========
+
+function getPrivateMessages() {
+    global $pdo;
+    
+    $user_id = isset($_GET['user_id']) ? intval($_GET['user_id']) : 0;
+    $my_id = isset($_GET['my_id']) ? intval($_GET['my_id']) : 0;
+    
+    if (!$user_id || !$my_id) {
+        echo json_encode(['success' => false, 'error' => 'Missing parameters']);
+        return;
+    }
+    
+    $stmt = $pdo->prepare("
+        SELECT pm.*, 
+               u1.username as from_username, u1.color as from_color,
+               u2.username as to_username, u2.color as to_color
+        FROM private_messages pm
+        JOIN users u1 ON pm.from_user_id = u1.id
+        JOIN users u2 ON pm.to_user_id = u2.id
+        WHERE (pm.from_user_id = ? AND pm.to_user_id = ?)
+           OR (pm.from_user_id = ? AND pm.to_user_id = ?)
+        ORDER BY pm.created_at DESC
+        LIMIT 50
+    ");
+    $stmt->execute([$my_id, $user_id, $user_id, $my_id]);
+    $messages = array_reverse($stmt->fetchAll(PDO::FETCH_ASSOC));
+    
+    echo json_encode(['success' => true, 'messages' => $messages]);
+}
+
+function sendPrivateMessage() {
+    global $pdo;
+    
+    $from_id = isset($_POST['from_id']) ? intval($_POST['from_id']) : 0;
+    $to_id = isset($_POST['to_id']) ? intval($_POST['to_id']) : 0;
+    $text = isset($_POST['text']) ? trim($_POST['text']) : '';
+    $target_lang = isset($_POST['target_lang']) ? $_POST['target_lang'] : 'zh';
+    
+    if (!$from_id || !$to_id || !$text) {
+        echo json_encode(['success' => false, 'error' => 'Missing parameters']);
+        return;
+    }
+    
+    // 翻译
+    $translated = translateText($text, 'auto', $target_lang);
+    
+    $stmt = $pdo->prepare("
+        INSERT INTO private_messages (from_user_id, to_user_id, original_text, translated_text) 
+        VALUES (?, ?, ?, ?)
+    ");
+    $stmt->execute([$from_id, $to_id, $text, $translated]);
+    
+    echo json_encode(['success' => true, 'id' => $pdo->lastInsertId()]);
+}
+
+function markPrivateRead() {
+    global $pdo;
+    
+    $user_id = isset($_POST['user_id']) ? intval($_POST['user_id']) : 0;
+    $from_id = isset($_POST['from_id']) ? intval($_POST['from_id']) : 0;
+    
+    if (!$user_id || !$from_id) {
+        echo json_encode(['success' => false, 'error' => 'Missing parameters']);
+        return;
+    }
+    
+    $stmt = $pdo->prepare("
+        UPDATE private_messages 
+        SET is_read = 1 
+        WHERE from_user_id = ? AND to_user_id = ? AND is_read = 0
+    ");
+    $stmt->execute([$from_id, $user_id]);
+    
+    echo json_encode(['success' => true]);
+}
+
+function getAllUsers() {
+    global $pdo;
+    
+    $stmt = $pdo->query("SELECT id, username, color, status, last_active FROM users ORDER BY last_active DESC LIMIT 50");
+    $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    echo json_encode(['success' => true, 'users' => $users]);
 }
