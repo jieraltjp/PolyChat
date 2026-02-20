@@ -17,6 +17,108 @@ class PolyChat {
         this.loadRooms();
         this.loadMessages();
         this.startSSE();
+        
+        // 加载房间类型
+        this.roomTypes = {};
+    }
+    
+    setRoomType(roomId, type) {
+        this.roomTypes[roomId] = type;
+        
+        const messagesContainer = document.getElementById('messagesContainer');
+        const tasksPanel = document.getElementById('tasksPanel');
+        const chatInputArea = document.getElementById('chatInputArea');
+        
+        if (type === 'task') {
+            messagesContainer.style.display = 'none';
+            tasksPanel.style.display = 'block';
+            chatInputArea.style.display = 'none';
+            this.loadTasks();
+        } else {
+            messagesContainer.style.display = 'block';
+            tasksPanel.style.display = 'none';
+            chatInputArea.style.display = 'block';
+        }
+    }
+    
+    async loadTasks() {
+        try {
+            const response = await fetch(`api.php?action=tasks&room_id=${this.roomId}`);
+            const result = await response.json();
+            
+            if (result.success) {
+                this.renderTasks(result.tasks || []);
+            }
+        } catch (error) {
+            console.error('加载任务失败:', error);
+        }
+    }
+    
+    renderTasks(tasks) {
+        const container = document.getElementById('tasksList');
+        
+        if (tasks.length === 0) {
+            container.innerHTML = '<div class="task-empty">暂无任务，点击上方添加</div>';
+            return;
+        }
+        
+        container.innerHTML = tasks.map(task => `
+            <div class="task-item ${task.completed ? 'completed' : ''}">
+                <input type="checkbox" class="task-checkbox" ${task.completed ? 'checked' : ''} 
+                    onchange="window.chat.toggleTask(${task.id})">
+                <span class="task-title">${this.escapeHTML(task.title)}</span>
+                <span class="task-delete" onclick="window.chat.deleteTask(${task.id})">×</span>
+            </div>
+        `).join('');
+    }
+    
+    async addTask() {
+        const title = prompt('请输入任务名称:');
+        if (!title) return;
+        
+        const user = this.user;
+        
+        const formData = new FormData();
+        formData.append('room_id', this.roomId);
+        formData.append('user_id', user.id || 0);
+        formData.append('title', title);
+        
+        try {
+            const response = await fetch('api.php?action=add_task', { method: 'POST', body: formData });
+            const result = await response.json();
+            
+            if (result.success) {
+                this.loadTasks();
+            }
+        } catch (error) {
+            console.error('添加任务失败:', error);
+        }
+    }
+    
+    async toggleTask(taskId) {
+        const formData = new FormData();
+        formData.append('task_id', taskId);
+        
+        try {
+            await fetch('api.php?action=toggle_task', { method: 'POST', body: formData });
+            this.loadTasks();
+        } catch (error) {
+            console.error('更新任务失败:', error);
+        }
+    }
+    
+    async deleteTask(taskId) {
+        if (!confirm('确定删除此任务?')) return;
+        
+        const formData = new FormData();
+        formData.append('task_id', taskId);
+        
+        try {
+            await fetch('api.php?action=delete_task', { method: 'POST', body: formData });
+            this.loadTasks();
+        } catch (error) {
+            console.error('删除任务失败:', error);
+        }
     }
     
     bindEvents() {

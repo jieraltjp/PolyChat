@@ -49,6 +49,18 @@ try {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )");
     
+    // 任务表 (用于任务模式房间)
+    $pdo->exec("CREATE TABLE IF NOT EXISTS tasks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        room_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        completed INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (room_id) REFERENCES rooms(id),
+        FOREIGN KEY (user_id) REFERENCES users(id)
+    )");
+    
     // 创建默认公共房间
     $pdo->exec("INSERT OR IGNORE INTO rooms (id, name, description, type) VALUES (1, '公共聊天室', '所有人可以在这里聊天', 'public')");
     
@@ -204,6 +216,7 @@ function translateWithGoogle($text, $from = 'auto', $to = 'zh') {
     } catch (Exception $e) {}
     
     if (empty($apiKey)) {
+        error_log("Google Translate: No API key");
         return $text;
     }
     
@@ -223,9 +236,13 @@ function translateWithGoogle($text, $from = 'auto', $to = 'zh') {
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
     curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
     
     $response = curl_exec($ch);
+    $error = curl_error($ch);
     curl_close($ch);
+    
+    error_log("Google Translate response: $response, error: $error");
     
     if ($response) {
         $result = json_decode($response, true);

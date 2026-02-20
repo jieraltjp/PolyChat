@@ -423,3 +423,80 @@ function handleConfig() {
         echo json_encode(['success' => false, 'error' => 'Permission denied']);
     }
 }
+
+// ========== 任务功能 ==========
+
+function getTasks() {
+    global $pdo;
+    
+    $room_id = isset($_GET['room_id']) ? intval($_GET['room_id']) : 0;
+    
+    if (!$room_id) {
+        echo json_encode(['success' => false, 'error' => 'Missing room_id']);
+        return;
+    }
+    
+    $stmt = $pdo->prepare("
+        SELECT t.*, u.username, u.color 
+        FROM tasks t 
+        JOIN users u ON t.user_id = u.id 
+        WHERE t.room_id = ? 
+        ORDER BY t.completed ASC, t.created_at DESC
+    ");
+    $stmt->execute([$room_id]);
+    $tasks = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    echo json_encode(['success' => true, 'tasks' => $tasks]);
+}
+
+function addTask() {
+    global $pdo;
+    
+    $room_id = isset($_POST['room_id']) ? intval($_POST['room_id']) : 0;
+    $user_id = isset($_POST['user_id']) ? intval($_POST['user_id']) : 0;
+    $title = isset($_POST['title']) ? trim($_POST['title']) : '';
+    
+    if (!$room_id || !$title) {
+        echo json_encode(['success' => false, 'error' => 'Missing parameters']);
+        return;
+    }
+    
+    $stmt = $pdo->prepare("INSERT INTO tasks (room_id, user_id, title) VALUES (?, ?, ?)");
+    $stmt->execute([$room_id, $user_id, $title]);
+    
+    $task_id = $pdo->lastInsertId();
+    
+    echo json_encode(['success' => true, 'task' => ['id' => $task_id, 'title' => $title]]);
+}
+
+function toggleTask() {
+    global $pdo;
+    
+    $task_id = isset($_POST['task_id']) ? intval($_POST['task_id']) : 0;
+    
+    if (!$task_id) {
+        echo json_encode(['success' => false, 'error' => 'Missing task_id']);
+        return;
+    }
+    
+    $stmt = $pdo->prepare("UPDATE tasks SET completed = NOT completed WHERE id = ?");
+    $stmt->execute([$task_id]);
+    
+    echo json_encode(['success' => true]);
+}
+
+function deleteTask() {
+    global $pdo;
+    
+    $task_id = isset($_POST['task_id']) ? intval($_POST['task_id']) : 0;
+    
+    if (!$task_id) {
+        echo json_encode(['success' => false, 'error' => 'Missing task_id']);
+        return;
+    }
+    
+    $stmt = $pdo->prepare("DELETE FROM tasks WHERE id = ?");
+    $stmt->execute([$task_id]);
+    
+    echo json_encode(['success' => true]);
+}

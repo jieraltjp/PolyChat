@@ -1,27 +1,23 @@
 <?php
-// Test Google translation
-$text = "Hello World";
-$url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=zh&dt=t&q=" . urlencode($text);
+// Test Google Translation
+$text = 'Hello world';
+$apiKey = 'AIzaSyC2koO9krfo0HlDQYdkzfNzjmCAqp0Stj0';
 
-$context = stream_context_create([
-    'http' => [
-        'timeout' => 10,
-        'ignore_errors' => true
-    ]
+$url = "https://translation.googleapis.com/language/translate/v2?key=$apiKey";
+
+$ch = curl_init();
+curl_setopt($ch, CURLOPT_URL, $url);
+curl_setopt($ch, CURLOPT_POST, true);
+$postFields = json_encode([
+    'q' => $text,
+    'target' => 'zh',
+    'format' => 'text'
 ]);
+curl_setopt($ch, CURLOPT_POSTFIELDS, $postFields);
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
 
-$response = @file_get_contents($url, false, $context);
+$response = curl_exec($ch);
+curl_close($ch);
 
-echo "URL: $url\n";
-echo "Response: $response\n";
-
-$result = json_decode($response, true);
-if ($result && isset($result[0]) && is_array($result[0])) {
-    $translated = '';
-    foreach ($result[0] as $item) {
-        if (isset($item[0])) {
-            $translated .= $item[0];
-        }
-    }
-    echo "Translated: $translated\n";
-}
+echo $response . "\n";

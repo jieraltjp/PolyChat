@@ -83,7 +83,16 @@
                     </div>
                 </div>
                 
-                <div class="input-area">
+                <!-- 任务面板 (任务模式房间显示) -->
+                <div class="tasks-panel" id="tasksPanel" style="display:none;">
+                    <div class="tasks-header">
+                        <span>📋 待办事项</span>
+                        <button class="btn-add-task" id="addTaskBtn">+ 添加</button>
+                    </div>
+                    <div class="tasks-list" id="tasksList"></div>
+                </div>
+                
+                <div class="input-area" id="chatInputArea">
                     <div class="emoji-bar">
                         <button class="emoji-btn" data-emoji="👍">👍</button>
                         <button class="emoji-btn" data-emoji="❤️">❤️</button>
@@ -231,6 +240,9 @@
             
             document.getElementById('username').value = user.username;
             window.currentUser = user;
+            
+            // 加载配置（检查管理员权限）
+            loadConfig();
         }
         
         // Tab 切换
