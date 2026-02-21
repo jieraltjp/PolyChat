@@ -1,9 +1,11 @@
 <?php
-// PolyChat API v2.0 - 完整API
+// PolyChat API v2.6 - 统一错误码版
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
+header('X-Frame-Options: DENY');
+header('X-Content-Type-Options: nosniff');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit(0);
@@ -12,9 +14,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 // 时区设置
 date_default_timezone_set('Asia/Tokyo');
 
-require_once __DIR__ . '/db.php';
+// 错误码定义
+define('ERR_SUCCESS', 0);
+define('ERR_SERVER', 1);
+define('ERR_NOT_FOUND', 2);
+define('ERR_UNAUTHORIZED', 3);
+define('ERR_FORBIDDEN', 4);
+define('ERR_RATE_LIMIT', 5);
+define('ERR_INVALID_PARAM', 6);
 
-// 加载管理员函数
+// 统一响应
+function response($code, $data=null, $msg='') {
+    $r = array('code'=>$code);
+    if($data!==null) $r['data'] = $data;
+    if($msg) $r['message'] = $msg;
+    echo json_encode($r);
+    exit;
+}
+
+function success($data=null, $msg='') { response(ERR_SUCCESS, $data, $msg); }
+function error($code, $msg='') { response($code, null, $msg); }
+
+require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/admin_functions.php';
 
 $action = isset($_GET['action']) ? $_GET['action'] : '';
