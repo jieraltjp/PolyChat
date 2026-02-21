@@ -59,6 +59,7 @@
             <div class="header-actions">
                 <button class="btn-logout" id="logoutBtn">退出</button>
             </div>
+            <button class="mobile-sidebar-btn" id="mobileSidebarBtn">☰</button>
         </header>
         
         <!-- 主内容 -->
@@ -143,6 +144,14 @@
                 <div class="sidebar-card">
                     <div class="sidebar-title">⚙️ 个人设置</div>
                     <div class="setup-form">
+                        <div class="form-group">
+                            <label>头像</label>
+                            <div class="avatar-upload">
+                                <img id="avatarPreview" src="" alt="头像" style="width:60px;height:60px;border-radius:50%;display:none;">
+                                <input type="file" id="avatarInput" accept="image/*" style="display:none;">
+                                <button type="button" class="btn-avatar" onclick="document.getElementById('avatarInput').click()">上传头像</button>
+                            </div>
+                        </div>
                         <div class="form-group">
                             <label>用户名</label>
                             <input type="text" id="username" readonly>
@@ -354,7 +363,50 @@
                     }
                 } catch (e) {}
             }
+            
+            // 加载头像
+            if (user.avatar) {
+                const img = document.getElementById('avatarPreview');
+                img.src = user.avatar;
+                img.style.display = 'block';
+            }
         }
+        
+        // 头像上传
+        document.getElementById('avatarInput')?.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = async () => {
+                const base64 = reader.result;
+                
+                const user = JSON.parse(localStorage.getItem('polychat_user') || '{}');
+                const formData = new FormData();
+                formData.append('user_id', user.id);
+                formData.append('username', user.username);
+                formData.append('avatar', base64);
+                
+                try {
+                    const res = await fetch('api.php?action=update_profile', { method: 'POST', body: formData });
+                    const data = await res.json();
+                    
+                    if (data.success) {
+                        const img = document.getElementById('avatarPreview');
+                        img.src = base64;
+                        img.style.display = 'block';
+                        
+                        // 更新本地存储
+                        user.avatar = base64;
+                        localStorage.setItem('polychat_user', JSON.stringify(user));
+                        alert('头像上传成功!');
+                    }
+                } catch (err) {
+                    alert('上传失败');
+                }
+            };
+            reader.readAsDataURL(file);
+        });
         
         // 创建房间
         document.getElementById('createRoomBtn')?.addEventListener('click', async () => {

@@ -1,4 +1,4 @@
-// PolyChat - 实时聊天室前端 v2.0
+// PolyChat - 实时聊天室前端 v2.3
 class PolyChat {
     constructor() {
         this.user = JSON.parse(localStorage.getItem('polychat_user') || '{}');
@@ -11,6 +11,9 @@ class PolyChat {
         // 读取上次所在的房间
         this.roomId = parseInt(localStorage.getItem('polychat_last_room')) || 1;
         
+        // 浏览器通知权限
+        this.notificationPermission = Notification.permission;
+        
         this.init();
     }
     
@@ -19,9 +22,40 @@ class PolyChat {
         this.loadRooms();
         this.loadMessages();
         this.startSSE();
+        this.initMobileSidebar();
+        this.initNotifications();
         
         // 加载房间类型
         this.roomTypes = {};
+    }
+    
+    // 移动端侧边栏
+    initMobileSidebar() {
+        const btn = document.getElementById('mobileSidebarBtn');
+        const sidebar = document.querySelector('.sidebar');
+        
+        if (btn && sidebar) {
+            btn.addEventListener('click', () => {
+                sidebar.classList.toggle('mobile-open');
+            });
+        }
+    }
+    
+    // 浏览器通知
+    initNotifications() {
+        // 请求通知权限
+        if (Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
+    }
+    
+    sendNotification(title, body) {
+        if (this.notificationPermission === 'granted' && !document.hasFocus()) {
+            new Notification(title, {
+                body: body,
+                icon: '🌍'
+            });
+        }
     }
     
     setRoomType(roomId, type) {
@@ -322,6 +356,8 @@ class PolyChat {
                         // 只添加当前房间的消息
                         if (msg.room_id == this.roomId && !this.messages.find(m => m.id === msg.id)) {
                             this.messages.push(msg);
+                            // 发送浏览器通知
+                            this.sendNotification(msg.username, msg.original_text);
                         }
                     });
                     this.renderMessages();

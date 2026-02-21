@@ -214,12 +214,32 @@ function updateProfile() {
     $username = isset($_POST['username']) ? trim($_POST['username']) : '';
     $email = isset($_POST['email']) ? trim($_POST['email']) : '';
     $color = isset($_POST['color']) ? $_POST['color'] : '';
+    $avatar = isset($_POST['avatar']) ? $_POST['avatar'] : '';
     
     try {
-        $stmt = $pdo->prepare("UPDATE users SET username = ?, email = ?, color = ? WHERE id = ?");
-        $stmt->execute([$username, $email, $color, $user_id]);
+        // 处理base64头像
+        $avatarPath = '';
+        if (!empty($avatar) && strpos($avatar, 'data:') === 0) {
+            // 保存头像到文件
+            $avatarData = base64_decode(preg_replace('/^data:image\/\w+;base64,/', '', $avatar));
+            $avatarName = 'avatar_' . $user_id . '_' . time() . '.png';
+            $avatarPath = 'uploads/' . $avatarName;
+            
+            if (!is_dir('uploads')) {
+                mkdir('uploads');
+            }
+            file_put_contents($avatarPath, $avatarData);
+        }
         
-        echo json_encode(['success' => true]);
+        if ($avatarPath) {
+            $stmt = $pdo->prepare("UPDATE users SET username = ?, email = ?, color = ?, avatar = ? WHERE id = ?");
+            $stmt->execute([$username, $email, $color, $avatarPath, $user_id]);
+        } else {
+            $stmt = $pdo->prepare("UPDATE users SET username = ?, email = ?, color = ? WHERE id = ?");
+            $stmt->execute([$username, $email, $color, $user_id]);
+        }
+        
+        echo json_encode(['success' => true, 'avatar' => $avatarPath]);
     } catch (PDOException $e) {
         echo json_encode(['success' => false, 'error' => '更新失败']);
     }
