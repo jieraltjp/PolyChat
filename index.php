@@ -197,7 +197,7 @@
                 
                 <!-- 管理员面板 -->
                 <div class="sidebar-card" id="adminPanel" style="display:none;">
-                    <div class="sidebar-title">⚙️ 管理员配置</div>
+                    <div class="sidebar-title">🔧 管理员后台</div>
                     <div class="setup-form">
                         <div class="form-group">
                             <label>翻译服务</label>
@@ -211,6 +211,17 @@
                             <input type="text" id="newRoomName" class="form-input" placeholder="房间名称">
                         </div>
                         <button class="btn-primary" id="createRoomBtn" style="margin-top:8px;">创建房间</button>
+                        
+                        <hr style="border-color:var(--border);margin:15px 0;">
+                        
+                        <div class="form-group">
+                            <label>📊 统计数据</label>
+                            <div id="adminStats" style="font-size:0.85rem;color:var(--text-secondary);">
+                                加载中...
+                            </div>
+                        </div>
+                        
+                        <button class="btn-primary" id="refreshStatsBtn" style="margin-top:8px;background:var(--bg-input);">刷新统计</button>
                     </div>
                 </div>
             </aside>
@@ -351,6 +362,7 @@
             const user = JSON.parse(localStorage.getItem('polychat_user') || '{}');
             if (user.role === 'admin') {
                 document.getElementById('adminPanel').style.display = 'block';
+                loadAdminStats();
                 
                 // 加载翻译服务配置
                 try {
@@ -452,6 +464,30 @@
                 await fetch('api.php?action=config', { method: 'POST', body: formData });
             } catch (e) {}
         });
+        
+        // 加载统计数据
+        async function loadAdminStats() {
+            const user = JSON.parse(localStorage.getItem('polychat_user') || '{}');
+            if (user.role !== 'admin') return;
+            
+            try {
+                const res = await fetch('api.php?action=admin_stats&admin_id=' + user.id);
+                const data = await res.json();
+                
+                if (data.success && data.stats) {
+                    const s = data.stats;
+                    document.getElementById('adminStats').innerHTML = 
+                        '👥 用户: ' + s.total_users + '<br>' +
+                        '💬 消息: ' + s.total_messages + '<br>' +
+                        '🏠 房间: ' + s.total_rooms + '<br>' +
+                        '📅 今日: ' + s.today_messages + '<br>' +
+                        '🟢 在线: ' + s.online_users;
+                }
+            } catch (e) {}
+        }
+        
+        // 刷新统计
+        document.getElementById('refreshStatsBtn')?.addEventListener('click', loadAdminStats);
         
         // UI 语言
         document.getElementById('uiLang').addEventListener('change', (e) => {

@@ -122,6 +122,32 @@ try {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )");
     
+    // 速率限制表
+    $pdo->exec("CREATE TABLE IF NOT EXISTS rate_limits (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        `key` TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )");
+    
+    // 操作日志表
+    $pdo->exec("CREATE TABLE IF NOT EXISTS logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        action TEXT NOT NULL,
+        details TEXT,
+        ip TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )");
+    
+    // 每日统计表
+    $pdo->exec("CREATE TABLE IF NOT EXISTS stats_daily (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date DATE UNIQUE,
+        messages_count INTEGER DEFAULT 0,
+        users_count INTEGER DEFAULT 0,
+        rooms_count INTEGER DEFAULT 0
+    )");
+    
 } catch (PDOException $e) {
     die("数据库错误: " . $e->getMessage());
 }

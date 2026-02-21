@@ -14,6 +14,9 @@ date_default_timezone_set('Asia/Tokyo');
 
 require_once __DIR__ . '/db.php';
 
+// 加载管理员函数
+require_once __DIR__ . '/admin_functions.php';
+
 $action = isset($_GET['action']) ? $_GET['action'] : '';
 
 // 路由处理
@@ -79,6 +82,23 @@ switch ($action) {
         break;
     case 'all_users':
         getAllUsers();
+        break;
+    
+    // ========== 管理员 ==========
+    case 'admin_users':
+        adminGetUsers();
+        break;
+    case 'admin_ban':
+        adminBanUser();
+        break;
+    case 'admin_stats':
+        adminGetStats();
+        break;
+    case 'admin_logs':
+        adminGetLogs();
+        break;
+    case 'admin_delete_message':
+        adminDeleteMessage();
         break;
     
     // ========== SSE ==========
